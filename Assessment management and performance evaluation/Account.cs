@@ -1,0 +1,185 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Data.SQLite;
+namespace Assessment_management_and_performance_evaluation
+{
+    internal class Account
+    {
+        private string connectionString = "Data Source=assessment.db;Version=3;";
+
+        private int accountID;
+        private string userType;
+        private int userID;
+
+        public int AccountID { get => accountID; set => accountID = value; }
+        public string UserType { get => userType; set => userType = value; }
+        public int UserID { get => userID; set => userID = value; }
+
+        // Method to create an account
+        public bool CreateAccount(string username, string password)
+        {
+            try
+            {
+                string hashedPassword = HashPassword(password);
+                string userType = "Administrator"; // Default user type
+
+                using (SQLiteConnection conn = new SQLiteConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "INSERT INTO Users (Username, Password, UserType) VALUES (@username, @password, @userType)";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@username", username);
+                        cmd.Parameters.AddWithValue("@password", hashedPassword);
+                        cmd.Parameters.AddWithValue("@userType", userType);
+
+                        int result = cmd.ExecuteNonQuery();
+                        if (result > 0)
+                        {
+                            MessageBox.Show("Account created successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return true;
+                        }
+                        else
+                        {
+                            MessageBox.Show("Failed to create account!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (SQLiteException ex)
+            {
+                MessageBox.Show("Database error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return false;
+        }
+
+        // Method to hash passwords securely
+        private string HashPassword(string password)
+        {
+            try
+            {
+                using (SHA256 sha256 = SHA256.Create())
+                {
+                    byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                    StringBuilder builder = new StringBuilder();
+                    foreach (byte b in bytes)
+                    {
+                        builder.Append(b.ToString("x2"));
+                    }
+                    return builder.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error hashing password: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return string.Empty;
+            }
+        }
+
+        // Method to check if the username already exists
+        public bool UserExists(string username)
+        {
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT COUNT(*) FROM Users WHERE Username = @username";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@username", username);
+                        int count = Convert.ToInt32(cmd.ExecuteScalar());
+
+                        return count > 0; // Returns true if user exists
+                    }
+                }
+            }
+            catch (SQLiteException ex)
+            {
+                MessageBox.Show("Database error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        public void UpdateAccount(User user) { /* Logic */ }
+
+        // Method to handle user login
+        public bool Login(string username, string password, out string userType, out int userId)
+        {
+            userType = null;
+            userId = -1; // Default value for invalid login
+
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT UserID, UserType, Password FROM Users WHERE Username = @username";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@username", username);
+                        using (SQLiteDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                string storedHashedPassword = reader["Password"].ToString();
+                                userType = reader["UserType"].ToString();
+                                userId = Convert.ToInt32(reader["UserID"]);
+
+                                if (VerifyPassword(password, storedHashedPassword))
+                                {
+                                    return true; // Login successful
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SQLiteException ex)
+            {
+                MessageBox.Show("Database error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return false;
+        }
+
+        // Method to store the logged-in user
+        private void StoreLoggedInUser(string username, string userType)
+        {
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "INSERT INTO LoggedInUsers (Username, UserType) VALUES (@username, @userType)";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@username", username);
+                        cmd.Parameters.AddWithValue("@userType", userType);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (SQLiteException ex)
+            {
+                MessageBox.Show("Error storing logged-in user: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Method to verify password hash
+        private bool VerifyPassword(string inputPassword, string storedHashedPassword)
+        {
+            string hashedInput = HashPassword(inputPassword);
+            return hashedInput == storedHashedPassword;
+        }
+
+    }
+}
