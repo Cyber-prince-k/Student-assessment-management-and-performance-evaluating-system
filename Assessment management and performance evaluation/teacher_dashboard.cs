@@ -18,7 +18,9 @@ namespace Assessment_management_and_performance_evaluation
         private string currentSection = "";
         private bool sectionActive = false;
         private List<Question> questionsList = new List<Question>(); // Store questions
-        
+       // private List<Panel> questionPanels = new List<Panel>();
+
+
 
 
         public teacher_dashboard(int userId)
@@ -128,50 +130,6 @@ namespace Assessment_management_and_performance_evaluation
                 MessageBox.Show("You are now adding questions for: " + currentSection);
             }
         }
-
-        private void btnSaveAssessment_Click(object sender, EventArgs e)
-        {
-            if (questionsList == null || questionsList.Count == 0)
-            {
-                MessageBox.Show("No questions added! Please add at least one question.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(txtAssessmentTitle.Text))
-            {
-                MessageBox.Show("Please enter a title for the assessment.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // ✅ Get values from NumericUpDown
-            int timeLimit = (int)guna2NumericUpDown1.Value;  // Time in hours
-            int classLevel = (int)guna2NumericUpDown2.Value; // Class Level
-
-            // ✅ Calculate total marks for the assessment
-            int totalMarks = questionsList.Sum(q => q.Marks);
-
-            if (totalMarks == 0)
-            {
-                MessageBox.Show("Total marks cannot be zero! Please assign marks to questions.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // ✅ Call the Teacher class method to save assessment
-            bool success = teacher.CreateAssessment(txtAssessmentTitle.Text, timeLimit, classLevel, totalMarks, questionsList);
-
-            if (success)
-            {
-                // ✅ Clear Fields After Saving
-                txtAssessmentTitle.Clear();
-                guna2NumericUpDown1.Value = 0;  // Reset time limit
-                guna2NumericUpDown2.Value = 0;  // Reset class level
-                panelQuestions.Controls.Clear();
-                questionsList.Clear();
-
-                MessageBox.Show("Assessment saved successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
-
         private void guna2Button3_Click(object sender, EventArgs e)
         {
             if (!sectionActive)
@@ -180,7 +138,13 @@ namespace Assessment_management_and_performance_evaluation
                 return;
             }
 
-            // ✅ Find the question TextBox by tag
+            if (lastAssessmentID == -1)
+            {
+                MessageBox.Show("Please save the assessment first before adding questions.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Find the Question TextBox and Marks NumericUpDown
             TextBox questionBox = panelQuestions.Controls
                 .OfType<TextBox>()
                 .FirstOrDefault(tb => tb.Tag != null && tb.Tag.ToString() == "Question");
@@ -189,56 +153,222 @@ namespace Assessment_management_and_performance_evaluation
                 .OfType<NumericUpDown>()
                 .FirstOrDefault();
 
-            // ✅ Ensure a question is entered
             if (questionBox == null || string.IsNullOrWhiteSpace(questionBox.Text))
             {
                 MessageBox.Show("Please enter a question before moving to the next one.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // ✅ Ensure marks are assigned
             if (marksBox == null || marksBox.Value == 0)
             {
                 MessageBox.Show("Please assign marks before moving to the next question.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // ✅ Ensure multiple-choice options are filled
+            string optionA = "", optionB = "", optionC = "", optionD = "", correctAnswer = "";
+
+            // Handle Multiple Choice Questions
             if (currentSection == "Multiple Choice")
             {
-                var optionBoxes = panelQuestions.Controls.OfType<TextBox>()
+                // Find the GroupBox containing the options
+                GroupBox optionsGroup = panelQuestions.Controls.OfType<GroupBox>().FirstOrDefault(gb => gb.Text == "Options");
+
+                if (optionsGroup == null)
+                {
+                    MessageBox.Show("Options section not found!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Search for TextBox controls inside the GroupBox
+                var optionBoxes = optionsGroup.Controls.OfType<TextBox>()
                     .Where(tb => tb.Tag != null && tb.Tag.ToString().StartsWith("Option"))
+                    .OrderBy(tb => tb.Tag.ToString())
                     .ToList();
 
-                foreach (var optionBox in optionBoxes)
+                // Debugging: Display the count of optionBoxes found
+                MessageBox.Show($"Debug: Found {optionBoxes.Count} option textboxes.", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                foreach (var tb in optionBoxes)
                 {
-                    if (string.IsNullOrWhiteSpace(optionBox.Text))
-                    {
-                        MessageBox.Show("Please enter all multiple-choice options before proceeding.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
+                    MessageBox.Show($"Tag: {tb.Tag}, Value: {tb.Text}", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                // Ensure exactly 4 options exist
+                if (optionBoxes.Count != 4)
+                {
+                    MessageBox.Show($"Found {optionBoxes.Count} option textboxes instead of 4. Please enter all four multiple-choice options before proceeding.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Assign values properly
+                optionA = optionBoxes[0].Text.Trim();
+                optionB = optionBoxes[1].Text.Trim();
+                optionC = optionBoxes[2].Text.Trim();
+                optionD = optionBoxes[3].Text.Trim();
+
+                // Ensure no empty options
+                if (string.IsNullOrWhiteSpace(optionA) || string.IsNullOrWhiteSpace(optionB) ||
+                    string.IsNullOrWhiteSpace(optionC) || string.IsNullOrWhiteSpace(optionD))
+                {
+                    MessageBox.Show("All multiple-choice options must be filled before proceeding.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Find the selected correct answer
+                var correctRadioButton = optionsGroup.Controls.OfType<RadioButton>()
+                    .FirstOrDefault(rb => rb.Checked);
+
+                if (correctRadioButton == null)
+                {
+                    MessageBox.Show("Please select the correct answer.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Match the correct answer with its corresponding textbox
+                correctAnswer = optionBoxes.FirstOrDefault(tb => tb.Tag.ToString() == correctRadioButton.Tag.ToString())?.Text.Trim();
+
+                if (string.IsNullOrWhiteSpace(correctAnswer))
+                {
+                    MessageBox.Show("Selected correct answer is invalid.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
                 }
             }
 
-            // ✅ Save question
-            Question newQuestion = new Question
+            // Save question to the database
+            try
             {
-                QuestionText = questionBox.Text,
-                QuestionType = currentSection,
-                Marks = (int)marksBox.Value
-            };
-            questionsList.Add(newQuestion);
+                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
 
-            // ✅ Clear panel and prepare for next question
+                    string query = "INSERT INTO Questions (AssessmentID, QuestionText, OptionA, OptionB, OptionC, OptionD, CorrectAnswer) " +
+                                   "VALUES (@assessmentID, @question, @optionA, @optionB, @optionC, @optionD, @correctAnswer)";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@assessmentID", lastAssessmentID);
+                        cmd.Parameters.AddWithValue("@question", questionBox.Text);
+                        cmd.Parameters.AddWithValue("@optionA", optionA);
+                        cmd.Parameters.AddWithValue("@optionB", optionB);
+                        cmd.Parameters.AddWithValue("@optionC", optionC);
+                        cmd.Parameters.AddWithValue("@optionD", optionD);
+                        cmd.Parameters.AddWithValue("@correctAnswer", correctAnswer);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                MessageBox.Show("Question added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
             panelQuestions.Controls.Clear();
             teacher.GenerateQuestionStructure(currentSection, panelQuestions);
-
         }
 
         private void guna2Button1_Click(object sender, EventArgs e)
         {
 
         }
+        private int lastAssessmentID = -1; // Store the last inserted AssessmentID
+        private void btnSaveAssessment_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtAssessmentTitle.Text))
+            {
+                MessageBox.Show("All fields must be filled!", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int timeLimit = (int)guna2NumericUpDown1.Value;
+            int classLevel = (int)guna2NumericUpDown2.Value;
+
+            List<Question> questionsList = GetQuestionsFromForm();
+
+            using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+            {
+                conn.Open();
+                using (SQLiteTransaction transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // ✅ Insert Assessment and Get AssessmentID
+                        string insertAssessmentQuery = "INSERT INTO Assessments (Title, TimeLimit, ClassLevel) VALUES (@Title, @TimeLimit, @ClassLevel)";
+                        using (SQLiteCommand cmd = new SQLiteCommand(insertAssessmentQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Title", txtAssessmentTitle.Text);
+                            cmd.Parameters.AddWithValue("@TimeLimit", timeLimit);
+                            cmd.Parameters.AddWithValue("@ClassLevel", classLevel);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // ✅ Get the last inserted AssessmentID
+                        lastAssessmentID = (int)conn.LastInsertRowId;
+
+                        transaction.Commit();
+                        MessageBox.Show("Assessment saved successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        MessageBox.Show("Error saving assessment: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+
+        }
+        private List<Question> GetQuestionsFromForm()
+        {
+            List<Question> questions = new List<Question>();
+
+            MessageBox.Show($"Total Controls in Panel: {panelQuestions.Controls.Count}", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            foreach (Control control in panelQuestions.Controls)
+            {
+                if (control is Panel questionPanel)
+                {
+                    TextBox questionBox = questionPanel.Controls
+                        .OfType<TextBox>()
+                        .FirstOrDefault(tb => tb.Tag?.ToString() == "Question");
+
+                    NumericUpDown marksBox = questionPanel.Controls
+                        .OfType<NumericUpDown>()
+                        .FirstOrDefault();
+
+                    if (questionBox == null || string.IsNullOrWhiteSpace(questionBox.Text))
+                    {
+                        MessageBox.Show("Skipping empty question!", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        continue;
+                    }
+
+                    if (marksBox == null)
+                    {
+                        MessageBox.Show("Skipping question with no marks!", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        continue;
+                    }
+
+                    Question q = new Question
+                    {
+                        QuestionText = questionBox.Text,
+                        QuestionType = currentSection,
+                        Marks = (int)marksBox.Value,
+                        Options = new List<Option>()
+                    };
+
+                    questions.Add(q);
+                }
+            }
+
+            MessageBox.Show($"Total Questions Collected: {questions.Count}", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return questions;
+        }
+
+        private void Std_Registraster_Click(object sender, EventArgs e)
+        {
+
+        }
     }
-    }
+}
 

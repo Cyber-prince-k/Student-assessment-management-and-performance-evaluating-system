@@ -8,6 +8,7 @@ using System.Data.SQLite;
 
 namespace Assessment_management_and_performance_evaluation
 {
+
     internal class Teacher
     {
         private int lectureID;
@@ -20,8 +21,6 @@ namespace Assessment_management_and_performance_evaluation
         public string SubjectRoot { get => subjectRoot; set => subjectRoot = value; }
         public string AssessmentTimeLimit { get => assessmentTimeLimit; set => assessmentTimeLimit = value; } // ✅ Ensure this is a STRING
 
-
-        // ✅ Method to Generate Question Structure
         public void GenerateQuestionStructure(string sectionType, Panel panel)
         {
             panel.Controls.Clear(); // Clear previous questions
@@ -44,18 +43,7 @@ namespace Assessment_management_and_performance_evaluation
             };
             panel.Controls.Add(questionBox);
 
-            if (sectionType == "Structured")
-            {
-                RichTextBox structuredText = new RichTextBox
-                {
-                    Width = 400,
-                    Height = 100,
-                    Top = 80,
-                    Left = 10
-                };
-                panel.Controls.Add(structuredText);
-            }
-            else if (sectionType == "Multiple Choice")
+            if (sectionType == "Multiple Choice")
             {
                 Label instructionLabel = new Label
                 {
@@ -66,18 +54,18 @@ namespace Assessment_management_and_performance_evaluation
                 };
                 panel.Controls.Add(instructionLabel);
 
-                // ✅ Create a group box for options
+                // Create a group box for options
                 GroupBox optionsGroup = new GroupBox
                 {
                     Text = "Options",
                     Width = 450,
-                    Height = 150,
+                    Height = 200,
                     Top = 110,
                     Left = 10
                 };
                 panel.Controls.Add(optionsGroup);
 
-                for (int i = 1; i <= 3; i++) // Creating 3 options
+                for (int i = 1; i <= 4; i++) // Creating 4 options
                 {
                     RadioButton optionRadio = new RadioButton
                     {
@@ -85,7 +73,7 @@ namespace Assessment_management_and_performance_evaluation
                         Top = 10 + (i * 30),
                         Left = 10,
                         AutoSize = true,
-                        Tag = $"Option{i}"  // ✅ Unique tag for identifying the correct answer
+                        Tag = $"Option{i}"  // Unique tag for identifying the correct answer
                     };
 
                     TextBox optionTextBox = new TextBox
@@ -93,34 +81,15 @@ namespace Assessment_management_and_performance_evaluation
                         Width = 300,
                         Top = optionRadio.Top,
                         Left = 100,
-                        Tag = $"Option{i}Text" // ✅ Tag for identifying option text fields
+                        Tag = $"Option{i}" // Tag for identifying option text fields
                     };
 
                     optionsGroup.Controls.Add(optionRadio);
                     optionsGroup.Controls.Add(optionTextBox);
                 }
             }
-            else if (sectionType == "Essay")
-            {
-                TextBox essayTitle = new TextBox
-                {
-                    Width = 400,
-                    Top = 80,
-                    Left = 10
-                };
-                panel.Controls.Add(essayTitle);
 
-                RichTextBox essayText = new RichTextBox
-                {
-                    Width = 400,
-                    Height = 150,
-                    Top = 120,
-                    Left = 10
-                };
-                panel.Controls.Add(essayText);
-            }
-
-            // ✅ Add input for marks
+            // Add input for marks
             Label marksLabel = new Label
             {
                 Text = "Marks:",
@@ -139,6 +108,7 @@ namespace Assessment_management_and_performance_evaluation
             };
             panel.Controls.Add(marksInput);
         }
+
         public void UpdateTotalMarks(long assessmentID)
         {
             try
@@ -174,75 +144,71 @@ namespace Assessment_management_and_performance_evaluation
                 MessageBox.Show("Error updating total marks: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private string connectionString = "Data Source=assessment.db;Version=3;";
 
-
-        public bool CreateAssessment(string title, int timeLimit, int classLevel, int totalMarks, List<Question> questions)
+        public bool SaveAssessment(string assessmentTitle, int timeLimit, string classLevel, List<Question> questionsList)
         {
-            try
+
+            using (SQLiteConnection conn = new SQLiteConnection(connectionString))
             {
-                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                conn.Open();
+                using (SQLiteTransaction transaction = conn.BeginTransaction())
                 {
-                    conn.Open();
-                    using (SQLiteTransaction transaction = conn.BeginTransaction())
+                    try
                     {
-                        try
+                        // ✅ Save Assessment First
+                        string insertAssessmentQuery = "INSERT INTO Assessments (Title, TimeLimit, ClassLevel) VALUES (@Title, @TimeLimit, @ClassLevel);";
+                        using (SQLiteCommand cmd = new SQLiteCommand(insertAssessmentQuery, conn))
                         {
-                            // ✅ 1️⃣ Insert into Assessments table
-                            string insertAssessmentQuery = "INSERT INTO Assessments (Title, TimeLimit, ClassLevel, TotalMarks) VALUES (@Title, @TimeLimit, @ClassLevel, @TotalMarks);";
-                            using (SQLiteCommand cmd = new SQLiteCommand(insertAssessmentQuery, conn))
+                            cmd.Parameters.AddWithValue("@Title", assessmentTitle);
+                            cmd.Parameters.AddWithValue("@TimeLimit", timeLimit);
+                            cmd.Parameters.AddWithValue("@ClassLevel", classLevel);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // ✅ Get the Last Inserted Assessment ID
+                        long assessmentId = conn.LastInsertRowId;
+
+                        // ✅ Save Each Question and Its Options
+                        foreach (var question in questionsList)
+                        {
+                            string insertQuestionQuery = "INSERT INTO Questions (AssessmentID, QuestionText) VALUES (@AssessmentID, @QuestionText);";
+                            using (SQLiteCommand cmd = new SQLiteCommand(insertQuestionQuery, conn))
                             {
-                                cmd.Parameters.AddWithValue("@Title", title);
-                                cmd.Parameters.AddWithValue("@TimeLimit", timeLimit);
-                                cmd.Parameters.AddWithValue("@ClassLevel", classLevel);
-                                cmd.Parameters.AddWithValue("@TotalMarks", totalMarks);
+                                cmd.Parameters.AddWithValue("@AssessmentID", assessmentId);
+                                cmd.Parameters.AddWithValue("@QuestionText", question.Text);
                                 cmd.ExecuteNonQuery();
                             }
 
-                            // ✅ 2️⃣ Get the generated AssessmentID
-                            long assessmentID = conn.LastInsertRowId;
+                            // ✅ Get the Last Inserted Question ID
+                            long questionId = conn.LastInsertRowId;
 
-                            // ✅ 3️⃣ Insert all questions into Questions table
-                            string insertQuestionQuery = "INSERT INTO Questions (AssessmentID, QuestionText, QuestionType, Marks, CorrectAnswer) VALUES (@AssessmentID, @QuestionText, @QuestionType, @Marks, @CorrectAnswer);";
-
-                            foreach (var question in questions)
+                            // ✅ Insert Options
+                            foreach (var option in question.Options)
                             {
-                                using (SQLiteCommand cmd = new SQLiteCommand(insertQuestionQuery, conn))
+                                string insertOptionQuery = "INSERT INTO Options (QuestionID, OptionText, IsCorrect) VALUES (@QuestionID, @OptionText, @IsCorrect);";
+                                using (SQLiteCommand cmd = new SQLiteCommand(insertOptionQuery, conn))
                                 {
-                                    cmd.Parameters.AddWithValue("@AssessmentID", assessmentID);
-                                    cmd.Parameters.AddWithValue("@QuestionText", question.QuestionText);
-                                    cmd.Parameters.AddWithValue("@QuestionType", question.QuestionType);
-                                    cmd.Parameters.AddWithValue("@Marks", question.Marks);
-
-                                    // ✅ If Multiple Choice, store the correct answer
-                                    if (question.QuestionType == "Multiple Choice")
-                                    {
-                                        cmd.Parameters.AddWithValue("@CorrectAnswer", question.CorrectAnswer);
-                                    }
-                                    else
-                                    {
-                                        cmd.Parameters.AddWithValue("@CorrectAnswer", DBNull.Value);
-                                    }
-
+                                    cmd.Parameters.AddWithValue("@QuestionID", questionId);
+                                    cmd.Parameters.AddWithValue("@OptionText", option.Text);
+                                    cmd.Parameters.AddWithValue("@IsCorrect", option.IsCorrect ? 1 : 0);
                                     cmd.ExecuteNonQuery();
                                 }
                             }
+                        }
 
-                            transaction.Commit();
-                            return true;
-                        }
-                        catch (Exception ex)
-                        {
-                            transaction.Rollback();
-                            MessageBox.Show("Error saving assessment: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
+                        // ✅ Commit Transaction
+                        transaction.Commit();
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        MessageBox.Show("Error saving assessment: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return false;
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Unexpected error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            return false;
         }
 
     }

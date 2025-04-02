@@ -58,5 +58,10 @@ namespace Assessment_management_and_performance_evaluation
         {
 
         }
+
+        private void questionNO_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
