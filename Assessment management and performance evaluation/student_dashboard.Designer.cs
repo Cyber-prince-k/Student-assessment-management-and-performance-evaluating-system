@@ -31,6 +31,7 @@
             this.components = new System.ComponentModel.Container();
             this.guna2TabControl1 = new Guna.UI2.WinForms.Guna2TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.guna2PictureBox1 = new Guna.UI2.WinForms.Guna2PictureBox();
             this.guna2Button1 = new Guna.UI2.WinForms.Guna2Button();
             this.label9 = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
@@ -39,17 +40,18 @@
             this.guna2TextBox6 = new Guna.UI2.WinForms.Guna2TextBox();
             this.guna2TextBox5 = new Guna.UI2.WinForms.Guna2TextBox();
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.TimeRemaining = new System.Windows.Forms.Label();
-            this.ClassLevel = new System.Windows.Forms.Label();
-            this.AssessmentTitle = new System.Windows.Forms.Label();
+            this.btnPrevious = new Guna.UI2.WinForms.Guna2Button();
+            this.btnNext = new Guna.UI2.WinForms.Guna2Button();
+            this.label4 = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
             this.panelQuestions = new Guna.UI2.WinForms.Guna2ShadowPanel();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
-            this.questionNO = new System.Windows.Forms.Label();
-            this.guna2PictureBox1 = new Guna.UI2.WinForms.Guna2PictureBox();
             this.guna2TabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
-            this.tabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.guna2PictureBox1)).BeginInit();
+            this.tabPage2.SuspendLayout();
             this.SuspendLayout();
             // 
             // guna2TabControl1
@@ -99,6 +101,15 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "std identity";
             this.tabPage1.Click += new System.EventHandler(this.tabPage1_Click);
+            // 
+            // guna2PictureBox1
+            // 
+            this.guna2PictureBox1.ImageRotate = 0F;
+            this.guna2PictureBox1.Location = new System.Drawing.Point(33, 94);
+            this.guna2PictureBox1.Name = "guna2PictureBox1";
+            this.guna2PictureBox1.Size = new System.Drawing.Size(300, 200);
+            this.guna2PictureBox1.TabIndex = 20;
+            this.guna2PictureBox1.TabStop = false;
             // 
             // guna2Button1
             // 
@@ -220,10 +231,12 @@
             // 
             // tabPage2
             // 
-            this.tabPage2.Controls.Add(this.questionNO);
-            this.tabPage2.Controls.Add(this.TimeRemaining);
-            this.tabPage2.Controls.Add(this.ClassLevel);
-            this.tabPage2.Controls.Add(this.AssessmentTitle);
+            this.tabPage2.Controls.Add(this.btnPrevious);
+            this.tabPage2.Controls.Add(this.btnNext);
+            this.tabPage2.Controls.Add(this.label4);
+            this.tabPage2.Controls.Add(this.label3);
+            this.tabPage2.Controls.Add(this.label2);
+            this.tabPage2.Controls.Add(this.label1);
             this.tabPage2.Controls.Add(this.panelQuestions);
             this.tabPage2.Location = new System.Drawing.Point(4, 44);
             this.tabPage2.Name = "tabPage2";
@@ -233,32 +246,81 @@
             this.tabPage2.Text = "Assessment";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
-            // TimeRemaining
+            // btnPrevious
             // 
-            this.TimeRemaining.AutoSize = true;
-            this.TimeRemaining.Location = new System.Drawing.Point(503, 48);
-            this.TimeRemaining.Name = "TimeRemaining";
-            this.TimeRemaining.Size = new System.Drawing.Size(35, 13);
-            this.TimeRemaining.TabIndex = 6;
-            this.TimeRemaining.Text = "label3";
+            this.btnPrevious.Animated = true;
+            this.btnPrevious.AutoRoundedCorners = true;
+            this.btnPrevious.BorderRadius = 21;
+            this.btnPrevious.DisabledState.BorderColor = System.Drawing.Color.DarkGray;
+            this.btnPrevious.DisabledState.CustomBorderColor = System.Drawing.Color.DarkGray;
+            this.btnPrevious.DisabledState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(169)))), ((int)(((byte)(169)))), ((int)(((byte)(169)))));
+            this.btnPrevious.DisabledState.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(141)))), ((int)(((byte)(141)))), ((int)(((byte)(141)))));
+            this.btnPrevious.FillColor = System.Drawing.Color.Black;
+            this.btnPrevious.Font = new System.Drawing.Font("Showcard Gothic", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnPrevious.ForeColor = System.Drawing.Color.White;
+            this.btnPrevious.Location = new System.Drawing.Point(233, 457);
+            this.btnPrevious.Name = "btnPrevious";
+            this.btnPrevious.Size = new System.Drawing.Size(180, 45);
+            this.btnPrevious.TabIndex = 30;
+            this.btnPrevious.Text = "previous quetion";
+            this.btnPrevious.Click += new System.EventHandler(this.guna2Button2_Click);
             // 
-            // ClassLevel
+            // btnNext
             // 
-            this.ClassLevel.AutoSize = true;
-            this.ClassLevel.Location = new System.Drawing.Point(298, 48);
-            this.ClassLevel.Name = "ClassLevel";
-            this.ClassLevel.Size = new System.Drawing.Size(35, 13);
-            this.ClassLevel.TabIndex = 5;
-            this.ClassLevel.Text = "label2";
+            this.btnNext.Animated = true;
+            this.btnNext.AutoRoundedCorners = true;
+            this.btnNext.BorderRadius = 21;
+            this.btnNext.DisabledState.BorderColor = System.Drawing.Color.DarkGray;
+            this.btnNext.DisabledState.CustomBorderColor = System.Drawing.Color.DarkGray;
+            this.btnNext.DisabledState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(169)))), ((int)(((byte)(169)))), ((int)(((byte)(169)))));
+            this.btnNext.DisabledState.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(141)))), ((int)(((byte)(141)))), ((int)(((byte)(141)))));
+            this.btnNext.FillColor = System.Drawing.Color.Black;
+            this.btnNext.Font = new System.Drawing.Font("Showcard Gothic", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnNext.ForeColor = System.Drawing.Color.White;
+            this.btnNext.Location = new System.Drawing.Point(552, 457);
+            this.btnNext.Name = "btnNext";
+            this.btnNext.Size = new System.Drawing.Size(180, 45);
+            this.btnNext.TabIndex = 29;
+            this.btnNext.Text = "Next question";
+            this.btnNext.Click += new System.EventHandler(this.guna2Button3_Click);
             // 
-            // AssessmentTitle
+            // label4
             // 
-            this.AssessmentTitle.AutoSize = true;
-            this.AssessmentTitle.Location = new System.Drawing.Point(40, 48);
-            this.AssessmentTitle.Name = "AssessmentTitle";
-            this.AssessmentTitle.Size = new System.Drawing.Size(35, 13);
-            this.AssessmentTitle.TabIndex = 4;
-            this.AssessmentTitle.Text = "label1";
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(766, 48);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(62, 13);
+            this.label4.TabIndex = 7;
+            this.label4.Text = "question no";
+            this.label4.Click += new System.EventHandler(this.questionNO_Click);
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(503, 48);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(45, 13);
+            this.label3.TabIndex = 6;
+            this.label3.Text = "duration";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(298, 48);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(56, 13);
+            this.label2.TabIndex = 5;
+            this.label2.Text = "class level";
+            this.label2.Click += new System.EventHandler(this.ClassLevel_Click);
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(40, 48);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(78, 13);
+            this.label1.TabIndex = 4;
+            this.label1.Text = "assessment tile";
             // 
             // panelQuestions
             // 
@@ -267,27 +329,8 @@
             this.panelQuestions.Location = new System.Drawing.Point(24, 80);
             this.panelQuestions.Name = "panelQuestions";
             this.panelQuestions.ShadowColor = System.Drawing.Color.Black;
-            this.panelQuestions.Size = new System.Drawing.Size(871, 410);
+            this.panelQuestions.Size = new System.Drawing.Size(871, 360);
             this.panelQuestions.TabIndex = 3;
-            // 
-            // questionNO
-            // 
-            this.questionNO.AutoSize = true;
-            this.questionNO.Location = new System.Drawing.Point(766, 48);
-            this.questionNO.Name = "questionNO";
-            this.questionNO.Size = new System.Drawing.Size(35, 13);
-            this.questionNO.TabIndex = 7;
-            this.questionNO.Text = "label3";
-            this.questionNO.Click += new System.EventHandler(this.questionNO_Click);
-            // 
-            // guna2PictureBox1
-            // 
-            this.guna2PictureBox1.ImageRotate = 0F;
-            this.guna2PictureBox1.Location = new System.Drawing.Point(33, 94);
-            this.guna2PictureBox1.Name = "guna2PictureBox1";
-            this.guna2PictureBox1.Size = new System.Drawing.Size(300, 200);
-            this.guna2PictureBox1.TabIndex = 20;
-            this.guna2PictureBox1.TabStop = false;
             // 
             // student_dashboard
             // 
@@ -299,12 +342,13 @@
             this.Name = "student_dashboard";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "student";
+            this.Load += new System.EventHandler(this.student_dashboard_Load);
             this.guna2TabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
             this.tabPage1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.guna2PictureBox1)).EndInit();
             this.tabPage2.ResumeLayout(false);
             this.tabPage2.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.guna2PictureBox1)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -322,11 +366,13 @@
         private Guna.UI2.WinForms.Guna2TextBox guna2TextBox5;
         private Guna.UI2.WinForms.Guna2Button guna2Button1;
         private Guna.UI2.WinForms.Guna2ShadowPanel panelQuestions;
-        private System.Windows.Forms.Label TimeRemaining;
-        private System.Windows.Forms.Label ClassLevel;
-        private System.Windows.Forms.Label AssessmentTitle;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Timer timer1;
-        private System.Windows.Forms.Label questionNO;
+        private System.Windows.Forms.Label label4;
         private Guna.UI2.WinForms.Guna2PictureBox guna2PictureBox1;
+        private Guna.UI2.WinForms.Guna2Button btnPrevious;
+        private Guna.UI2.WinForms.Guna2Button btnNext;
     }
 }

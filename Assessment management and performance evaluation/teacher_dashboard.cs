@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Data.SQLite;
 using System.Windows.Forms;
+using System.IO;
 
 namespace Assessment_management_and_performance_evaluation
 {
@@ -271,8 +272,65 @@ namespace Assessment_management_and_performance_evaluation
 
         private void guna2Button1_Click(object sender, EventArgs e)
         {
+            // Get student details from form controls
+            string firstName = txtFirstName.Text.Trim();
+            string lastName = txtLastName.Text.Trim();
+            string parentEmail = txtParentEmail.Text.Trim();
+            string category = cmbCategory.SelectedItem?.ToString(); // Science or Humanities
+            byte[] studentImage = ImageToByteArray(pictureBoxStudent.Image); // Use correct PictureBox name
+            int classLevel = (int)guna2NumericUpDown3.Value;
 
+            // Validate input fields
+            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName) ||
+                string.IsNullOrWhiteSpace(parentEmail) || string.IsNullOrWhiteSpace(category) || studentImage == null)
+            {
+                MessageBox.Show("All fields are required!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Generate a temporary password
+            string tempPassword = GenerateTemporaryPassword();
+
+            // Create an instance of Account class to register student
+            Account account = new Account();
+            bool success = account.RegisterStudent(firstName, lastName, parentEmail, category, studentImage, tempPassword, classLevel);
+
+            if (success)
+            {
+                MessageBox.Show("Student registered successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Optionally clear form fields after successful registration
+                txtFirstName.Clear();
+                txtLastName.Clear();
+                txtParentEmail.Clear();
+                cmbCategory.SelectedIndex = -1;
+                guna2NumericUpDown3.Value = 1; // Reset to default
+                pictureBoxStudent.Image = null;
+            }
+            else
+            {
+                MessageBox.Show("Failed to register student!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
+
+        // Method to convert image to byte array
+        private byte[] ImageToByteArray(Image image)
+        {
+            if (image == null) return null;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                return ms.ToArray();
+            }
+            // Method to convert image to byte array
+        }
+
+        // Method to generate a temporary password
+        private string GenerateTemporaryPassword()
+        {
+            return Guid.NewGuid().ToString("N").Substring(0, 8); // 8-character random password
+        }
+
+        
         private int lastAssessmentID = -1; // Store the last inserted AssessmentID
         private void btnSaveAssessment_Click(object sender, EventArgs e)
         {
@@ -368,6 +426,21 @@ namespace Assessment_management_and_performance_evaluation
         private void Std_Registraster_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void guna2Button1_Click_1(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Title = "Select a Student Picture";
+                openFileDialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif";
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    // Load the selected image into the PictureBox
+                    pictureBoxStudent.Image = Image.FromFile(openFileDialog.FileName);
+                }
+            }
         }
     }
 }

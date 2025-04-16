@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SQLite;
+using System.Net.Mail;
+using System.Net;
 namespace Assessment_management_and_performance_evaluation
 {
     internal class Account
@@ -179,6 +181,123 @@ namespace Assessment_management_and_performance_evaluation
         {
             string hashedInput = HashPassword(inputPassword);
             return hashedInput == storedHashedPassword;
+        }
+
+        public bool RegisterStudent(string firstName, string lastName, string parentEmail, string category, byte[] studentImage, string password, int classLevel)
+        {
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection(connectionString))
+                {
+                    conn.Open();
+                    using (SQLiteTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            string hashedPassword = HashPassword(password);
+
+                            // Insert into Users
+                            string insertUserQuery = "INSERT INTO Users (Username, Password, UserType) VALUES (@username, @password, 'Student')";
+                            using (SQLiteCommand cmd = new SQLiteCommand(insertUserQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@username", firstName);
+                                cmd.Parameters.AddWithValue("@password", hashedPassword);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Get the newly inserted UserID
+                            int userID;
+                            using (SQLiteCommand cmd = new SQLiteCommand("SELECT last_insert_rowid()", conn))
+                            {
+                                userID = Convert.ToInt32(cmd.ExecuteScalar());
+                            }
+
+                            // Insert into Students including ClassLevel
+                            string insertStudentQuery = "INSERT INTO Students (UserID, FirstName, LastName, ParentEmail, Category, StudentImage, ClassLevel) " +
+                                                        "VALUES (@userID, @firstName, @lastName, @parentEmail, @category, @studentImage, @classLevel)";
+                            using (SQLiteCommand cmd = new SQLiteCommand(insertStudentQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@userID", userID);
+                                cmd.Parameters.AddWithValue("@firstName", firstName);
+                                cmd.Parameters.AddWithValue("@lastName", lastName);
+                                cmd.Parameters.AddWithValue("@parentEmail", parentEmail);
+                                cmd.Parameters.AddWithValue("@category", category);
+                                cmd.Parameters.AddWithValue("@studentImage", studentImage);
+                                cmd.Parameters.AddWithValue("@classLevel", classLevel);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Assign predefined subjects based on category
+                            AssignPredefinedSubjects(conn, userID, category);
+
+                            // Commit transaction
+                            transaction.Commit();
+
+                            // Send password email after successful registration
+                            SendEmail(parentEmail, password);
+
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            MessageBox.Show("Error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch (SQLiteException ex)
+            {
+                MessageBox.Show("Database connection error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        public void SendEmail(string recipientEmail, string tempPassword)
+        {
+            try
+            {
+                MailMessage mail = new MailMessage();
+                SmtpClient smtp = new SmtpClient("smtp.gmail.com");
+
+                mail.From = new MailAddress("princekamnga1@gmail.com");
+                mail.To.Add(recipientEmail);
+                mail.Subject = "Temporary Password for Your Child's Account";
+                mail.Body = $"Dear Parent,\n\nYour child's account has been created successfully.\n\nTemporary Password: {tempPassword}\n\nPlease ensure your child changes this password upon first login.\n\nBest regards,\nSchool Administration";
+
+                smtp.Port = 587;
+                smtp.Credentials = new NetworkCredential("princekamnga1@gmail.com", "jjjboroxxgiiadns"); // Use App Password here
+
+                smtp.EnableSsl = true;
+
+                smtp.Send(mail);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to send email: " + ex.Message, "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Method to assign predefined subjects based on category
+
+        private void AssignPredefinedSubjects(SQLiteConnection conn, int studentID, string category)
+        {
+            string[] scienceSubjects = { "Mathematics", "Agriculture", "English", "Chichewa", "Physics", "Chemistry" };
+            string[] humanitiesSubjects = { "Mathematics", "Agriculture", "English", "Chichewa", "History", "Geography" };
+
+            string[] selectedSubjects = category == "Science" ? scienceSubjects : humanitiesSubjects;
+
+            foreach (string subject in selectedSubjects)
+            {
+                string query = "INSERT INTO StudentSubjects (StudentID, SubjectName) VALUES (@studentID, @subject)";
+                using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@studentID", studentID);
+                    cmd.Parameters.AddWithValue("@subject", subject);
+                    cmd.ExecuteNonQuery();
+                }
+            }
         }
 
     }
