@@ -90,7 +90,13 @@ namespace Assessment_management_and_performance_evaluation
                 using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
                 {
                     conn.Open();
-                    string query = "SELECT * FROM Questions WHERE AssessmentID = @assessmentID";
+
+                    // Debug output
+                    Console.WriteLine($"Loading questions for assessment ID: {assessmentId}");
+
+                    string query = @"SELECT QuestionID, QuestionText, OptionA, OptionB, OptionC, OptionD, CorrectAnswer 
+                          FROM Questions 
+                          WHERE AssessmentID = @assessmentID";
 
                     using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
                     {
@@ -98,15 +104,34 @@ namespace Assessment_management_and_performance_evaluation
 
                         using (SQLiteDataReader reader = cmd.ExecuteReader())
                         {
+                            // Debug output
+                            Console.WriteLine($"Found {reader.HasRows} rows");
+
                             while (reader.Read())
                             {
-                                questions.Add(new Question
+                                var question = new Question
                                 {
-                                    QuestionID = Convert.ToInt32(reader["QuestionID"]),
-                                    QuestionText = reader["QuestionText"].ToString(),
-                                    QuestionType = "Multiple Choice", // You can change dynamically if needed
-                                    Marks = 0 // Also update if you store marks
-                                });
+                                    QuestionID = reader.GetInt32(reader.GetOrdinal("QuestionID")),
+                                    QuestionText = reader.GetString(reader.GetOrdinal("QuestionText")),
+                                    Options = new List<Option>()
+                                };
+
+                                // Add options if they exist
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionA")))
+                                {
+                                    question.Options.Add(new Option
+                                    {
+                                        Text = reader.GetString(reader.GetOrdinal("OptionA")),
+                                        IsCorrect = reader.GetString(reader.GetOrdinal("CorrectAnswer")) == reader.GetString(reader.GetOrdinal("OptionA"))
+                                    });
+                                }
+
+                                // Repeat for OptionB, OptionC, OptionD...
+
+                                questions.Add(question);
+
+                                // Debug output for each question
+                                Console.WriteLine($"Loaded question ID: {question.QuestionID}");
                             }
                         }
                     }
@@ -114,12 +139,11 @@ namespace Assessment_management_and_performance_evaluation
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading questions: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error loading questions: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             return questions;
         }
-
     }
 
     // ✅ Define the Option Class

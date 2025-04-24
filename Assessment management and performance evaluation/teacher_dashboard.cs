@@ -141,135 +141,190 @@ namespace Assessment_management_and_performance_evaluation
 
             if (lastAssessmentID == -1)
             {
-                MessageBox.Show("Please save the assessment first before adding questions.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Please save the assessment first before adding questions.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // Find the Question TextBox and Marks NumericUpDown
+            // Find controls
             TextBox questionBox = panelQuestions.Controls
                 .OfType<TextBox>()
                 .FirstOrDefault(tb => tb.Tag != null && tb.Tag.ToString() == "Question");
 
             NumericUpDown marksBox = panelQuestions.Controls
                 .OfType<NumericUpDown>()
-                .FirstOrDefault();
+                .FirstOrDefault(n => n.Tag != null && n.Tag.ToString() == "Marks");
 
+            // Validate inputs
             if (questionBox == null || string.IsNullOrWhiteSpace(questionBox.Text))
             {
-                MessageBox.Show("Please enter a question before moving to the next one.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Please enter a question before moving to the next one.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             if (marksBox == null || marksBox.Value == 0)
             {
-                MessageBox.Show("Please assign marks before moving to the next question.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Please assign marks before moving to the next question.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
+            // Prepare options - for non-MCQ questions, we'll use empty strings
             string optionA = "", optionB = "", optionC = "", optionD = "", correctAnswer = "";
 
-            // Handle Multiple Choice Questions
             if (currentSection == "Multiple Choice")
             {
-                // Find the GroupBox containing the options
-                GroupBox optionsGroup = panelQuestions.Controls.OfType<GroupBox>().FirstOrDefault(gb => gb.Text == "Options");
-
-                if (optionsGroup == null)
+                if (!GetMultipleChoiceOptions(out optionA, out optionB, out optionC, out optionD, out correctAnswer))
                 {
-                    MessageBox.Show("Options section not found!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
-                // Search for TextBox controls inside the GroupBox
-                var optionBoxes = optionsGroup.Controls.OfType<TextBox>()
-                    .Where(tb => tb.Tag != null && tb.Tag.ToString().StartsWith("Option"))
-                    .OrderBy(tb => tb.Tag.ToString())
-                    .ToList();
-
-                // Debugging: Display the count of optionBoxes found
-                MessageBox.Show($"Debug: Found {optionBoxes.Count} option textboxes.", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                foreach (var tb in optionBoxes)
-                {
-                    MessageBox.Show($"Tag: {tb.Tag}, Value: {tb.Text}", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-
-                // Ensure exactly 4 options exist
-                if (optionBoxes.Count != 4)
-                {
-                    MessageBox.Show($"Found {optionBoxes.Count} option textboxes instead of 4. Please enter all four multiple-choice options before proceeding.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Assign values properly
-                optionA = optionBoxes[0].Text.Trim();
-                optionB = optionBoxes[1].Text.Trim();
-                optionC = optionBoxes[2].Text.Trim();
-                optionD = optionBoxes[3].Text.Trim();
-
-                // Ensure no empty options
-                if (string.IsNullOrWhiteSpace(optionA) || string.IsNullOrWhiteSpace(optionB) ||
-                    string.IsNullOrWhiteSpace(optionC) || string.IsNullOrWhiteSpace(optionD))
-                {
-                    MessageBox.Show("All multiple-choice options must be filled before proceeding.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Find the selected correct answer
-                var correctRadioButton = optionsGroup.Controls.OfType<RadioButton>()
-                    .FirstOrDefault(rb => rb.Checked);
-
-                if (correctRadioButton == null)
-                {
-                    MessageBox.Show("Please select the correct answer.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Match the correct answer with its corresponding textbox
-                correctAnswer = optionBoxes.FirstOrDefault(tb => tb.Tag.ToString() == correctRadioButton.Tag.ToString())?.Text.Trim();
-
-                if (string.IsNullOrWhiteSpace(correctAnswer))
-                {
-                    MessageBox.Show("Selected correct answer is invalid.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
+                    return; // Validation failed
                 }
             }
 
-            // Save question to the database
-            try
+            // Use Teacher class to save the question
+            bool success = teacher.AddQuestion(
+                lastAssessmentID,
+                questionBox.Text,
+                currentSection,
+                (int)marksBox.Value,
+                optionA,
+                optionB,
+                optionC,
+                optionD,
+                correctAnswer
+            );
+
+            if (success)
             {
-                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
-                {
-                    conn.Open();
-
-                    string query = "INSERT INTO Questions (AssessmentID, QuestionText, OptionA, OptionB, OptionC, OptionD, CorrectAnswer) " +
-                                   "VALUES (@assessmentID, @question, @optionA, @optionB, @optionC, @optionD, @correctAnswer)";
-
-                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@assessmentID", lastAssessmentID);
-                        cmd.Parameters.AddWithValue("@question", questionBox.Text);
-                        cmd.Parameters.AddWithValue("@optionA", optionA);
-                        cmd.Parameters.AddWithValue("@optionB", optionB);
-                        cmd.Parameters.AddWithValue("@optionC", optionC);
-                        cmd.Parameters.AddWithValue("@optionD", optionD);
-                        cmd.Parameters.AddWithValue("@correctAnswer", correctAnswer);
-
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-
-                MessageBox.Show("Question added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Question added successfully!",
+                               "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                panelQuestions.Controls.Clear();
+                teacher.GenerateQuestionStructure(currentSection, panelQuestions);
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-
-            panelQuestions.Controls.Clear();
-            teacher.GenerateQuestionStructure(currentSection, panelQuestions);
         }
 
+        private bool GetMultipleChoiceOptions(out string optionA, out string optionB,
+                                            out string optionC, out string optionD,
+                                            out string correctAnswer)
+        {
+            optionA = optionB = optionC = optionD = correctAnswer = "";
+
+            GroupBox optionsGroup = panelQuestions.Controls
+                .OfType<GroupBox>()
+                .FirstOrDefault(gb => gb.Text == "Options");
+
+            if (optionsGroup == null)
+            {
+                MessageBox.Show("Options section not found!", "Error",
+                               MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+
+            var optionBoxes = optionsGroup.Controls
+                .OfType<TextBox>()
+                .Where(tb => tb.Tag != null && tb.Tag.ToString().StartsWith("Option"))
+                .OrderBy(tb => tb.Tag.ToString())
+                .ToList();
+
+            var radioButtons = optionsGroup.Controls
+                .OfType<RadioButton>()
+                .OrderBy(rb => rb.Tag.ToString())
+                .ToList();
+
+            if (optionBoxes.Count != 4)
+            {
+                MessageBox.Show("Please enter all four multiple-choice options.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            // Get option texts
+            optionA = optionBoxes[0].Text.Trim();
+            optionB = optionBoxes[1].Text.Trim();
+            optionC = optionBoxes[2].Text.Trim();
+            optionD = optionBoxes[3].Text.Trim();
+
+            // Validate options aren't empty
+            if (string.IsNullOrWhiteSpace(optionA) || string.IsNullOrWhiteSpace(optionB) ||
+                string.IsNullOrWhiteSpace(optionC) || string.IsNullOrWhiteSpace(optionD))
+            {
+                MessageBox.Show("All multiple-choice options must be filled.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            // Find correct answer
+            var correctRadioButton = radioButtons.FirstOrDefault(rb => rb.Checked);
+            if (correctRadioButton == null)
+            {
+                MessageBox.Show("Please select the correct answer.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            // Get the text of the correct answer
+            int correctIndex = radioButtons.IndexOf(correctRadioButton);
+            correctAnswer = optionBoxes[correctIndex].Text.Trim();
+
+            return true;
+        }
+        private List<Option> GetMultipleChoiceOptions()
+        {
+            GroupBox optionsGroup = panelQuestions.Controls
+                .OfType<GroupBox>()
+                .FirstOrDefault(gb => gb.Text == "Options");
+
+            if (optionsGroup == null)
+            {
+                MessageBox.Show("Options section not found!", "Error",
+                               MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
+            }
+
+            var optionBoxes = optionsGroup.Controls
+                .OfType<TextBox>()
+                .Where(tb => tb.Tag != null && tb.Tag.ToString().StartsWith("Option"))
+                .OrderBy(tb => tb.Tag.ToString())
+                .ToList();
+
+            var radioButtons = optionsGroup.Controls
+                .OfType<RadioButton>()
+                .OrderBy(rb => rb.Tag.ToString())
+                .ToList();
+
+            if (optionBoxes.Count != 4)
+            {
+                MessageBox.Show("Please enter all four multiple-choice options.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            List<Option> options = new List<Option>();
+            for (int i = 0; i < optionBoxes.Count; i++)
+            {
+                if (string.IsNullOrWhiteSpace(optionBoxes[i].Text))
+                {
+                    MessageBox.Show("All multiple-choice options must be filled.",
+                                   "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return null;
+                }
+
+                options.Add(new Option
+                {
+                    Text = optionBoxes[i].Text.Trim(),
+                    IsCorrect = radioButtons[i].Checked
+                });
+            }
+
+            if (!options.Any(o => o.IsCorrect))
+            {
+                MessageBox.Show("Please select the correct answer.",
+                               "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            return options;
+        }
         private void guna2Button1_Click(object sender, EventArgs e)
         {
             // Get student details from form controls
@@ -336,90 +391,86 @@ namespace Assessment_management_and_performance_evaluation
         {
             if (string.IsNullOrWhiteSpace(txtAssessmentTitle.Text))
             {
-                MessageBox.Show("All fields must be filled!", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Assessment title is required!", "Validation Error",
+                               MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             int timeLimit = (int)guna2NumericUpDown1.Value;
             int classLevel = (int)guna2NumericUpDown2.Value;
+            DateTime assessmentDateTime = guna2DateTimePicker1.Value;
 
-            List<Question> questionsList = GetQuestionsFromForm();
+            // Use Teacher class to save assessment with datetime
+            lastAssessmentID = teacher.CreateAssessment(
+                txtAssessmentTitle.Text,
+                timeLimit,
+                classLevel,
+                assessmentDateTime
+            );
 
-            using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+            if (lastAssessmentID > 0)
             {
-                conn.Open();
-                using (SQLiteTransaction transaction = conn.BeginTransaction())
-                {
-                    try
-                    {
-                        // ✅ Insert Assessment and Get AssessmentID
-                        string insertAssessmentQuery = "INSERT INTO Assessments (Title, TimeLimit, ClassLevel) VALUES (@Title, @TimeLimit, @ClassLevel)";
-                        using (SQLiteCommand cmd = new SQLiteCommand(insertAssessmentQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@Title", txtAssessmentTitle.Text);
-                            cmd.Parameters.AddWithValue("@TimeLimit", timeLimit);
-                            cmd.Parameters.AddWithValue("@ClassLevel", classLevel);
-                            cmd.ExecuteNonQuery();
-                        }
+                MessageBox.Show("Assessment saved successfully! You can now add questions.",
+                               "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                        // ✅ Get the last inserted AssessmentID
-                        lastAssessmentID = (int)conn.LastInsertRowId;
-
-                        transaction.Commit();
-                        MessageBox.Show("Assessment saved successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        MessageBox.Show("Error saving assessment: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
+                // Enable question adding
+                sectionActive = true;
+                guna2ComboBox1.Enabled = false;
             }
-
         }
         private List<Question> GetQuestionsFromForm()
         {
             List<Question> questions = new List<Question>();
 
-            MessageBox.Show($"Total Controls in Panel: {panelQuestions.Controls.Count}", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Find the question text box
+            TextBox questionBox = panelQuestions.Controls
+                .OfType<TextBox>()
+                .FirstOrDefault(tb => tb.Tag != null && tb.Tag.ToString() == "Question");
 
-            foreach (Control control in panelQuestions.Controls)
+            // Find the marks input
+            NumericUpDown marksBox = panelQuestions.Controls
+                .OfType<NumericUpDown>()
+                .FirstOrDefault(n => n.Tag != null && n.Tag.ToString() == "Marks");
+
+            if (questionBox != null && marksBox != null && !string.IsNullOrWhiteSpace(questionBox.Text))
             {
-                if (control is Panel questionPanel)
+                Question q = new Question
                 {
-                    TextBox questionBox = questionPanel.Controls
-                        .OfType<TextBox>()
-                        .FirstOrDefault(tb => tb.Tag?.ToString() == "Question");
+                    QuestionText = questionBox.Text,
+                    QuestionType = currentSection,
+                    Marks = (int)marksBox.Value,
+                    Options = new List<Option>()
+                };
 
-                    NumericUpDown marksBox = questionPanel.Controls
-                        .OfType<NumericUpDown>()
-                        .FirstOrDefault();
-
-                    if (questionBox == null || string.IsNullOrWhiteSpace(questionBox.Text))
+                // For multiple choice questions, collect options
+                if (currentSection == "Multiple Choice")
+                {
+                    GroupBox optionsGroup = panelQuestions.Controls.OfType<GroupBox>().FirstOrDefault(gb => gb.Text == "Options");
+                    if (optionsGroup != null)
                     {
-                        MessageBox.Show("Skipping empty question!", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        continue;
+                        var optionBoxes = optionsGroup.Controls.OfType<TextBox>()
+                            .Where(tb => tb.Tag != null && tb.Tag.ToString().StartsWith("Option"))
+                            .OrderBy(tb => tb.Tag.ToString())
+                            .ToList();
+
+                        var radioButtons = optionsGroup.Controls.OfType<RadioButton>()
+                            .OrderBy(rb => rb.Tag.ToString())
+                            .ToList();
+
+                        for (int i = 0; i < optionBoxes.Count; i++)
+                        {
+                            q.Options.Add(new Option
+                            {
+                                Text = optionBoxes[i].Text,
+                                IsCorrect = radioButtons[i].Checked
+                            });
+                        }
                     }
-
-                    if (marksBox == null)
-                    {
-                        MessageBox.Show("Skipping question with no marks!", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        continue;
-                    }
-
-                    Question q = new Question
-                    {
-                        QuestionText = questionBox.Text,
-                        QuestionType = currentSection,
-                        Marks = (int)marksBox.Value,
-                        Options = new List<Option>()
-                    };
-
-                    questions.Add(q);
                 }
+
+                questions.Add(q);
             }
 
-            MessageBox.Show($"Total Questions Collected: {questions.Count}", "Debug", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return questions;
         }
 

@@ -153,28 +153,33 @@ namespace Assessment_management_and_performance_evaluation
               }
           }
         */
+       
         private void SendEmail(string recipientEmail, string tempPassword)
         {
             try
             {
-                MailMessage mail = new MailMessage();
-                SmtpClient smtp = new SmtpClient("smtp.gmail.com");
+                using (MailMessage mail = new MailMessage())
+                using (SmtpClient smtp = new SmtpClient("smtp.gmail.com"))
+                {
+                    mail.From = new MailAddress("princekamnga1@gmail.com");
+                    mail.To.Add(recipientEmail);
+                    mail.Subject = "Temporary Password for Your Account";
+                    mail.Body = $"Hello,\n\nYour account has been created. Your temporary password is: {tempPassword}\n\nPlease change it upon first login.\n\nBest regards,\nAdmin";
+                    mail.IsBodyHtml = false; // Explicitly set to false since you're using plain text
 
-                mail.From = new MailAddress("princekamnga1@gmail.com");
-                mail.To.Add(recipientEmail);
-                mail.Subject = "Temporary Password for Your Account";
-                mail.Body = $"Hello,\n\nYour account has been created. Your temporary password is: {tempPassword}\n\nPlease change it upon first login.\n\nBest regards,\nAdmin";
+                    smtp.Port = 587;
+                    smtp.Credentials = new NetworkCredential("princekamnga1@gmail.com", "bqvybghkgprijkcg");
+                    smtp.EnableSsl = true;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.Timeout = 10000; // 10 seconds timeout
 
-                smtp.Port = 587; // Use port 587 for TLS
-                smtp.Credentials = new NetworkCredential("princekamnga1@gmail.com", "jjjboroxxgiiadns"); // Use App Password here
-                smtp.EnableSsl = true; // Enable SSL for encryption
-
-                smtp.Send(mail);
-                MessageBox.Show("Email sent successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    smtp.Send(mail);
+                    MessageBox.Show("Email sent successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Failed to send email: " + ex.ToString(), "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Failed to send email: {ex.Message}", "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         public void DeleteAccount(int userID) { /* Logic */ }

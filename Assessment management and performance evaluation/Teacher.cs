@@ -146,71 +146,103 @@ namespace Assessment_management_and_performance_evaluation
         }
         private string connectionString = "Data Source=assessment.db;Version=3;";
 
-        public bool SaveAssessment(string assessmentTitle, int timeLimit, string classLevel, List<Question> questionsList)
+
+        public int CreateAssessment(string title, int timeLimit, int classLevel, DateTime assessmentDateTime)
         {
-
-            using (SQLiteConnection conn = new SQLiteConnection(connectionString))
+            try
             {
-                conn.Open();
-                using (SQLiteTransaction transaction = conn.BeginTransaction())
+                using (SQLiteConnection conn = new SQLiteConnection(connectionString))
                 {
-                    try
+                    conn.Open();
+                    string query = @"INSERT INTO Assessments 
+                               (Title, TimeLimit, ClassLevel, TotalMarks, AssessmentDateTime) 
+                               VALUES (@Title, @TimeLimit, @ClassLevel, 0, @AssessmentDateTime);
+                               SELECT last_insert_rowid();";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
                     {
-                        // ✅ Save Assessment First
-                        string insertAssessmentQuery = "INSERT INTO Assessments (Title, TimeLimit, ClassLevel) VALUES (@Title, @TimeLimit, @ClassLevel);";
-                        using (SQLiteCommand cmd = new SQLiteCommand(insertAssessmentQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@Title", assessmentTitle);
-                            cmd.Parameters.AddWithValue("@TimeLimit", timeLimit);
-                            cmd.Parameters.AddWithValue("@ClassLevel", classLevel);
-                            cmd.ExecuteNonQuery();
-                        }
+                        cmd.Parameters.AddWithValue("@Title", title);
+                        cmd.Parameters.AddWithValue("@TimeLimit", timeLimit);
+                        cmd.Parameters.AddWithValue("@ClassLevel", classLevel);
+                        cmd.Parameters.AddWithValue("@AssessmentDateTime", assessmentDateTime.ToString("yyyy-MM-dd HH:mm:ss"));
 
-                        // ✅ Get the Last Inserted Assessment ID
-                        long assessmentId = conn.LastInsertRowId;
-
-                        // ✅ Save Each Question and Its Options
-                        foreach (var question in questionsList)
-                        {
-                            string insertQuestionQuery = "INSERT INTO Questions (AssessmentID, QuestionText) VALUES (@AssessmentID, @QuestionText);";
-                            using (SQLiteCommand cmd = new SQLiteCommand(insertQuestionQuery, conn))
-                            {
-                                cmd.Parameters.AddWithValue("@AssessmentID", assessmentId);
-                                cmd.Parameters.AddWithValue("@QuestionText", question.Text);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            // ✅ Get the Last Inserted Question ID
-                            long questionId = conn.LastInsertRowId;
-
-                            // ✅ Insert Options
-                            foreach (var option in question.Options)
-                            {
-                                string insertOptionQuery = "INSERT INTO Options (QuestionID, OptionText, IsCorrect) VALUES (@QuestionID, @OptionText, @IsCorrect);";
-                                using (SQLiteCommand cmd = new SQLiteCommand(insertOptionQuery, conn))
-                                {
-                                    cmd.Parameters.AddWithValue("@QuestionID", questionId);
-                                    cmd.Parameters.AddWithValue("@OptionText", option.Text);
-                                    cmd.Parameters.AddWithValue("@IsCorrect", option.IsCorrect ? 1 : 0);
-                                    cmd.ExecuteNonQuery();
-                                }
-                            }
-                        }
-
-                        // ✅ Commit Transaction
-                        transaction.Commit();
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        MessageBox.Show("Error saving assessment: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return false;
+                        return Convert.ToInt32(cmd.ExecuteScalar());
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error creating assessment: " + ex.Message,
+                              "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return -1;
+            }
         }
+        public bool AddQuestion(int assessmentId, string questionText, string questionType,
+                              int marks, string optionA, string optionB,
+                              string optionC, string optionD, string correctAnswer)
+        {
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection(connectionString))
+                {
+                    conn.Open();
+                    using (SQLiteTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Insert the question with all required fields
+                            string questionQuery = @"INSERT INTO Questions 
+                                              (AssessmentID, QuestionText, questiontype, qmarks,
+                                               OptionA, OptionB, OptionC, OptionD, CorrectAnswer) 
+                                              VALUES (@AssessmentID, @QuestionText, @QuestionType, @Marks,
+                                                      @OptionA, @OptionB, @OptionC, @OptionD, @CorrectAnswer)";
 
+                            using (SQLiteCommand cmd = new SQLiteCommand(questionQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@AssessmentID", assessmentId);
+                                cmd.Parameters.AddWithValue("@QuestionText", questionText);
+                                cmd.Parameters.AddWithValue("@QuestionType", questionType);
+                                cmd.Parameters.AddWithValue("@Marks", marks);
+                                cmd.Parameters.AddWithValue("@OptionA", optionA);
+                                cmd.Parameters.AddWithValue("@OptionB", optionB);
+                                cmd.Parameters.AddWithValue("@OptionC", optionC);
+                                cmd.Parameters.AddWithValue("@OptionD", optionD);
+                                cmd.Parameters.AddWithValue("@CorrectAnswer", correctAnswer);
+
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Update total marks
+                            string updateMarksQuery = @"UPDATE Assessments 
+                                                  SET TotalMarks = (SELECT SUM(qmarks) 
+                                                                  FROM Questions 
+                                                                  WHERE AssessmentID = @AssessmentID) 
+                                                  WHERE AssessmentID = @AssessmentID";
+
+                            using (SQLiteCommand cmd = new SQLiteCommand(updateMarksQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@AssessmentID", assessmentId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error adding question: " + ex.Message,
+                               "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
     }
 }
 

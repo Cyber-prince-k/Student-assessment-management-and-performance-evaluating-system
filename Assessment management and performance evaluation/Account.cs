@@ -267,7 +267,7 @@ namespace Assessment_management_and_performance_evaluation
                 mail.Body = $"Dear Parent,\n\nYour child's account has been created successfully.\n\nTemporary Password: {tempPassword}\n\nPlease ensure your child changes this password upon first login.\n\nBest regards,\nSchool Administration";
 
                 smtp.Port = 587;
-                smtp.Credentials = new NetworkCredential("princekamnga1@gmail.com", "jjjboroxxgiiadns"); // Use App Password here
+                smtp.Credentials = new NetworkCredential("princekamnga1@gmail.com", "bqvybghkgprijkcg"); // Use App Password here
 
                 smtp.EnableSsl = true;
 
