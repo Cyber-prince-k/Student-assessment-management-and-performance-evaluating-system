@@ -30,7 +30,11 @@
         {
             this.components = new System.ComponentModel.Container();
             this.guna2TabControl1 = new Guna.UI2.WinForms.Guna2TabControl();
-            this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.tabControl1 = new System.Windows.Forms.TabPage();
+            this.label10 = new System.Windows.Forms.Label();
+            this.Logo = new Guna.UI2.WinForms.Guna2PictureBox();
+            this.AssessmentTitles = new Guna.UI2.WinForms.Guna2ComboBox();
+            this.guna2PictureBox1 = new Guna.UI2.WinForms.Guna2PictureBox();
             this.guna2Button1 = new Guna.UI2.WinForms.Guna2Button();
             this.Sname = new System.Windows.Forms.Label();
             this.label8 = new System.Windows.Forms.Label();
@@ -44,20 +48,16 @@
             this.label1 = new System.Windows.Forms.Label();
             this.panelQuestions = new Guna.UI2.WinForms.Guna2ShadowPanel();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
-            this.AssessmentTitles = new Guna.UI2.WinForms.Guna2ComboBox();
-            this.Logo = new Guna.UI2.WinForms.Guna2PictureBox();
-            this.guna2PictureBox1 = new Guna.UI2.WinForms.Guna2PictureBox();
-            this.label10 = new System.Windows.Forms.Label();
             this.guna2TabControl1.SuspendLayout();
-            this.tabPage1.SuspendLayout();
-            this.tabPage2.SuspendLayout();
+            this.tabControl1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Logo)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.guna2PictureBox1)).BeginInit();
+            this.tabPage2.SuspendLayout();
             this.SuspendLayout();
             // 
             // guna2TabControl1
             // 
-            this.guna2TabControl1.Controls.Add(this.tabPage1);
+            this.guna2TabControl1.Controls.Add(this.tabControl1);
             this.guna2TabControl1.Controls.Add(this.tabPage2);
             this.guna2TabControl1.ItemSize = new System.Drawing.Size(180, 40);
             this.guna2TabControl1.Location = new System.Drawing.Point(12, 38);
@@ -84,24 +84,73 @@
             this.guna2TabControl1.TabMenuBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(42)))), ((int)(((byte)(57)))));
             this.guna2TabControl1.TabMenuOrientation = Guna.UI2.WinForms.TabMenuOrientation.HorizontalTop;
             // 
-            // tabPage1
+            // tabControl1
             // 
-            this.tabPage1.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPage1.Controls.Add(this.label10);
-            this.tabPage1.Controls.Add(this.Logo);
-            this.tabPage1.Controls.Add(this.AssessmentTitles);
-            this.tabPage1.Controls.Add(this.guna2PictureBox1);
-            this.tabPage1.Controls.Add(this.guna2Button1);
-            this.tabPage1.Controls.Add(this.Sname);
-            this.tabPage1.Controls.Add(this.label8);
-            this.tabPage1.Controls.Add(this.Fname);
-            this.tabPage1.Location = new System.Drawing.Point(4, 44);
-            this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(1125, 512);
-            this.tabPage1.TabIndex = 0;
-            this.tabPage1.Text = "Assessment cover";
-            this.tabPage1.Click += new System.EventHandler(this.tabPage1_Click);
+            this.tabControl1.BackColor = System.Drawing.SystemColors.Control;
+            this.tabControl1.Controls.Add(this.label10);
+            this.tabControl1.Controls.Add(this.Logo);
+            this.tabControl1.Controls.Add(this.AssessmentTitles);
+            this.tabControl1.Controls.Add(this.guna2PictureBox1);
+            this.tabControl1.Controls.Add(this.guna2Button1);
+            this.tabControl1.Controls.Add(this.Sname);
+            this.tabControl1.Controls.Add(this.label8);
+            this.tabControl1.Controls.Add(this.Fname);
+            this.tabControl1.Location = new System.Drawing.Point(4, 44);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.Padding = new System.Windows.Forms.Padding(3);
+            this.tabControl1.Size = new System.Drawing.Size(1125, 512);
+            this.tabControl1.TabIndex = 0;
+            this.tabControl1.Text = "Assessment cover";
+            this.tabControl1.Click += new System.EventHandler(this.tabPage1_Click);
+            // 
+            // label10
+            // 
+            this.label10.AutoSize = true;
+            this.label10.Font = new System.Drawing.Font("Showcard Gothic", 21.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label10.Location = new System.Drawing.Point(413, 16);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(491, 36);
+            this.label10.TabIndex = 33;
+            this.label10.Text = "Likangala secondary school";
+            // 
+            // Logo
+            // 
+            this.Logo.Image = global::Assessment_management_and_performance_evaluation.Properties.Resources.school_logo;
+            this.Logo.ImageRotate = 0F;
+            this.Logo.Location = new System.Drawing.Point(143, 16);
+            this.Logo.Name = "Logo";
+            this.Logo.Size = new System.Drawing.Size(231, 134);
+            this.Logo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.Logo.TabIndex = 22;
+            this.Logo.TabStop = false;
+            // 
+            // AssessmentTitles
+            // 
+            this.AssessmentTitles.AutoRoundedCorners = true;
+            this.AssessmentTitles.BackColor = System.Drawing.Color.Transparent;
+            this.AssessmentTitles.BorderColor = System.Drawing.Color.Black;
+            this.AssessmentTitles.BorderRadius = 17;
+            this.AssessmentTitles.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            this.AssessmentTitles.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.AssessmentTitles.FocusedColor = System.Drawing.Color.FromArgb(((int)(((byte)(94)))), ((int)(((byte)(148)))), ((int)(((byte)(255)))));
+            this.AssessmentTitles.FocusedState.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(94)))), ((int)(((byte)(148)))), ((int)(((byte)(255)))));
+            this.AssessmentTitles.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.AssessmentTitles.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(68)))), ((int)(((byte)(88)))), ((int)(((byte)(112)))));
+            this.AssessmentTitles.ItemHeight = 30;
+            this.AssessmentTitles.Location = new System.Drawing.Point(690, 300);
+            this.AssessmentTitles.Name = "AssessmentTitles";
+            this.AssessmentTitles.Size = new System.Drawing.Size(267, 36);
+            this.AssessmentTitles.TabIndex = 21;
+            // 
+            // guna2PictureBox1
+            // 
+            this.guna2PictureBox1.ImageRotate = 0F;
+            this.guna2PictureBox1.Location = new System.Drawing.Point(128, 207);
+            this.guna2PictureBox1.Name = "guna2PictureBox1";
+            this.guna2PictureBox1.Size = new System.Drawing.Size(300, 200);
+            this.guna2PictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.guna2PictureBox1.TabIndex = 20;
+            this.guna2PictureBox1.TabStop = false;
             // 
             // guna2Button1
             // 
@@ -120,6 +169,7 @@
             this.guna2Button1.Size = new System.Drawing.Size(180, 45);
             this.guna2Button1.TabIndex = 19;
             this.guna2Button1.Text = "start ";
+            this.guna2Button1.Click += new System.EventHandler(this.guna2Button1_Click_1);
             // 
             // Sname
             // 
@@ -255,55 +305,6 @@
             this.panelQuestions.Size = new System.Drawing.Size(1080, 348);
             this.panelQuestions.TabIndex = 3;
             // 
-            // AssessmentTitles
-            // 
-            this.AssessmentTitles.AutoRoundedCorners = true;
-            this.AssessmentTitles.BackColor = System.Drawing.Color.Transparent;
-            this.AssessmentTitles.BorderColor = System.Drawing.Color.Black;
-            this.AssessmentTitles.BorderRadius = 17;
-            this.AssessmentTitles.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
-            this.AssessmentTitles.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.AssessmentTitles.FocusedColor = System.Drawing.Color.FromArgb(((int)(((byte)(94)))), ((int)(((byte)(148)))), ((int)(((byte)(255)))));
-            this.AssessmentTitles.FocusedState.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(94)))), ((int)(((byte)(148)))), ((int)(((byte)(255)))));
-            this.AssessmentTitles.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.AssessmentTitles.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(68)))), ((int)(((byte)(88)))), ((int)(((byte)(112)))));
-            this.AssessmentTitles.ItemHeight = 30;
-            this.AssessmentTitles.Location = new System.Drawing.Point(690, 300);
-            this.AssessmentTitles.Name = "AssessmentTitles";
-            this.AssessmentTitles.Size = new System.Drawing.Size(267, 36);
-            this.AssessmentTitles.TabIndex = 21;
-            // 
-            // Logo
-            // 
-            this.Logo.Image = global::Assessment_management_and_performance_evaluation.Properties.Resources.school_logo;
-            this.Logo.ImageRotate = 0F;
-            this.Logo.Location = new System.Drawing.Point(143, 16);
-            this.Logo.Name = "Logo";
-            this.Logo.Size = new System.Drawing.Size(231, 134);
-            this.Logo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.Logo.TabIndex = 22;
-            this.Logo.TabStop = false;
-            // 
-            // guna2PictureBox1
-            // 
-            this.guna2PictureBox1.ImageRotate = 0F;
-            this.guna2PictureBox1.Location = new System.Drawing.Point(128, 207);
-            this.guna2PictureBox1.Name = "guna2PictureBox1";
-            this.guna2PictureBox1.Size = new System.Drawing.Size(300, 200);
-            this.guna2PictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
-            this.guna2PictureBox1.TabIndex = 20;
-            this.guna2PictureBox1.TabStop = false;
-            // 
-            // label10
-            // 
-            this.label10.AutoSize = true;
-            this.label10.Font = new System.Drawing.Font("Showcard Gothic", 21.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label10.Location = new System.Drawing.Point(413, 16);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(491, 36);
-            this.label10.TabIndex = 33;
-            this.label10.Text = "Likangala secondary school";
-            // 
             // student_dashboard
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -316,12 +317,12 @@
             this.Text = "student";
             this.Load += new System.EventHandler(this.student_dashboard_Load);
             this.guna2TabControl1.ResumeLayout(false);
-            this.tabPage1.ResumeLayout(false);
-            this.tabPage1.PerformLayout();
-            this.tabPage2.ResumeLayout(false);
-            this.tabPage2.PerformLayout();
+            this.tabControl1.ResumeLayout(false);
+            this.tabControl1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Logo)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.guna2PictureBox1)).EndInit();
+            this.tabPage2.ResumeLayout(false);
+            this.tabPage2.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -329,7 +330,7 @@
         #endregion
 
         private Guna.UI2.WinForms.Guna2TabControl guna2TabControl1;
-        private System.Windows.Forms.TabPage tabPage1;
+        private System.Windows.Forms.TabPage tabControl1;
         private System.Windows.Forms.TabPage tabPage2;
         private System.Windows.Forms.Label Sname;
         private System.Windows.Forms.Label label8;

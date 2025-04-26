@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Data.SQLite;
-
+using System.IO;
 
 namespace Assessment_management_and_performance_evaluation
 {
@@ -21,124 +21,26 @@ namespace Assessment_management_and_performance_evaluation
         private int currentAssessmentID = 0; // Store the assessment ID
         private int totalTimeInSeconds;
         private System.Windows.Forms.Timer countdownTimer;
+        private List<RadioButton> currentRadioButtons = new List<RadioButton>();
+        private TextBox currentStructuredAnswerBox = null;
+        private RichTextBox currentEssayAnswerBox = null;
         public student_dashboard(int userId)
         {
             InitializeComponent();
             loggedInUserId = userId;
+
+            // Initialize questionNO label
+            questionNO = new Label
+            {
+                AutoSize = true,
+                Location = new Point(20, 10),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.Black,
+                Name = "questionNO"
+            };
+            panelQuestions.Controls.Add(questionNO);
         }
 
-        /*private void LoadAssessment()
-         {
-             try
-             {
-                 using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
-                 {
-                     conn.Open();
-
-                     string classQuery = "SELECT ClassLevel FROM Students WHERE UserID = @userId";
-                     int classLevel;
-
-                     using (SQLiteCommand cmd = new SQLiteCommand(classQuery, conn))
-                     {
-                         cmd.Parameters.AddWithValue("@userId", loggedInUserId);
-                         classLevel = Convert.ToInt32(cmd.ExecuteScalar());
-                     }
-
-                     string assessmentQuery = "SELECT * FROM Assessments WHERE ClassLevel = @level LIMIT 1";
-                     using (SQLiteCommand cmd = new SQLiteCommand(assessmentQuery, conn))
-                     {
-                         cmd.Parameters.AddWithValue("@level", classLevel);
-                         using (SQLiteDataReader reader = cmd.ExecuteReader())
-                         {
-                             if (reader.Read())
-                             {
-                                 assessmentId = Convert.ToInt32(reader["AssessmentID"]);
-                                 label1.Text = "Assessment: " + reader["Title"].ToString();
-                                 label2.Text = "Class Level: " + reader["ClassLevel"].ToString();
-                                 totalTimeInSeconds = Convert.ToInt32(reader["TimeLimit"]) * 60 * 60;
-                             }
-                             else
-                             {
-                                 MessageBox.Show("No assessment found for your class.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                 return;
-                             }
-                         }
-                     /
-
-                     // ✅ Load questions
-                     questionsList = Question.LoadQuestions(assessmentId);
-                     if (questionsList.Count == 0)
-                     {
-                         MessageBox.Show("No questions found in the assessment.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                         return;
-                     }
-
-                     StartCountdown();
-                     DisplayCurrentQuestion();
-                 }
-             }
-             catch (Exception ex)
-             {
-                 MessageBox.Show("Error loading assessment: " + ex.Message);
-             }
-         }*/
-        /*  private void LoadAssessment()
-          {
-              try
-              {
-                  using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
-                  {
-                      conn.Open();
-
-                      string classQuery = "SELECT ClassLevel FROM Students WHERE UserID = @userId";
-                      int classLevel;
-
-                      using (SQLiteCommand cmd = new SQLiteCommand(classQuery, conn))
-                      {
-                          cmd.Parameters.AddWithValue("@userId", loggedInUserId);
-                          classLevel = Convert.ToInt32(cmd.ExecuteScalar());
-                      }
-
-                      string assessmentQuery = "SELECT * FROM Assessments WHERE ClassLevel = @level LIMIT 1";
-                      using (SQLiteCommand cmd = new SQLiteCommand(assessmentQuery, conn))
-                      {
-                          cmd.Parameters.AddWithValue("@level", classLevel);
-                          using (SQLiteDataReader reader = cmd.ExecuteReader())
-                          {
-                              if (reader.Read())
-                              {
-                                  assessmentId = Convert.ToInt32(reader["AssessmentID"]);
-                                  currentAssessmentType = reader["AssessmentType"].ToString(); // Assuming you have this column
-                                  label1.Text = "Assessment: " + reader["Title"].ToString();
-                                  label2.Text = "Class Level: " + reader["ClassLevel"].ToString();
-                                  totalTimeInSeconds = Convert.ToInt32(reader["TimeLimit"]) * 60 * 60;
-                              }
-                              else
-                              {
-                                  MessageBox.Show("No assessment found for your class.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                  return;
-                              }
-                          }
-                      }
-
-                      // Load questions
-                      questionsList = Question.LoadQuestions(assessmentId);
-                      if (questionsList.Count == 0)
-                      {
-                          MessageBox.Show("No questions found in the assessment.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                          return;
-                      }
-
-                      StartCountdown();
-                      DisplayCurrentQuestion();
-                  }
-              }
-              catch (Exception ex)
-              {
-                  MessageBox.Show("Error loading assessment: " + ex.Message);
-              }
-          }
-        */
         private void LoadAssessment()
         {
             try
@@ -169,12 +71,17 @@ namespace Assessment_management_and_performance_evaluation
                         }
                     }
 
-                    // 2. Get assessment
-                    string assessmentQuery = "SELECT AssessmentID, Title, TimeLimit FROM Assessments WHERE ClassLevel = @level LIMIT 1";
+                    // 2. Get assessment and its type
+                    string assessmentQuery = @"
+                        SELECT a.AssessmentID, a.Title, a.TimeLimit, q.questiontype as AssessmentType 
+                        FROM Assessments a
+                        LEFT JOIN Questions q ON q.AssessmentID = a.AssessmentID
+                        WHERE a.AssessmentID = @assessmentId
+                        LIMIT 1";
 
                     using (SQLiteCommand cmd = new SQLiteCommand(assessmentQuery, conn))
                     {
-                        cmd.Parameters.AddWithValue("@level", classLevel);
+                        cmd.Parameters.AddWithValue("@assessmentId", currentAssessmentID);
 
                         using (SQLiteDataReader reader = cmd.ExecuteReader())
                         {
@@ -183,17 +90,18 @@ namespace Assessment_management_and_performance_evaluation
                                 assessmentId = reader.GetInt32(reader.GetOrdinal("AssessmentID"));
                                 string title = reader.GetString(reader.GetOrdinal("Title"));
                                 int timeLimit = reader.GetInt32(reader.GetOrdinal("TimeLimit"));
+                                currentAssessmentType = reader.GetString(reader.GetOrdinal("AssessmentType"));
 
                                 label1.Text = "Assessment: " + title;
                                 label2.Text = "Class Level: " + classLevel.ToString();
                                 totalTimeInSeconds = timeLimit * 60 * 60;
 
-                                Console.WriteLine($"Loaded Assessment: ID={assessmentId}, Title='{title}', TimeLimit={timeLimit} hours");
+                                Console.WriteLine($"Loaded Assessment: ID={assessmentId}, Title='{title}', TimeLimit={timeLimit} hours, Type={currentAssessmentType}");
                             }
                             else
                             {
-                                Console.WriteLine($"No assessment found for class level {classLevel}");
-                                MessageBox.Show("No assessment found for your class level.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                Console.WriteLine($"No assessment found with ID {currentAssessmentID}");
+                                MessageBox.Show("Assessment not found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                                 return;
                             }
                         }
@@ -201,48 +109,19 @@ namespace Assessment_management_and_performance_evaluation
 
                     // 3. Load questions
                     questionsList = Question.LoadQuestions(assessmentId);
-                    Console.WriteLine($"\nQuestion Loading Results:");
-                    Console.WriteLine($"Total questions loaded: {questionsList?.Count ?? 0}");
-
-                    if (questionsList == null || questionsList.Count == 0)
+                    if (questionsList.Count == 0)
                     {
-                        Console.WriteLine("WARNING: No questions were loaded!");
                         MessageBox.Show("No questions found in the assessment.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
-                    else
-                    {
-                        foreach (var question in questionsList)
-                        {
-                            Console.WriteLine($"\nQuestion ID: {question.QuestionID}");
-                            Console.WriteLine($"Text: {question.QuestionText}");
-                            Console.WriteLine($"Options: {question.Options?.Count ?? 0}");
 
-                            if (question.Options != null)
-                            {
-                                foreach (var option in question.Options)
-                                {
-                                    Console.WriteLine($"- {option.Text} {(option.IsCorrect ? "(Correct)" : "")}");
-                                }
-                            }
-                        }
-                    }
-
-                    // 4. Initialize and display first question
-                    currentIndex = 0;
-                    Console.WriteLine($"\nDisplaying question {currentIndex + 1} of {questionsList.Count}");
                     StartCountdown();
                     DisplayCurrentQuestion();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"\nCRITICAL ERROR IN LoadAssessment():");
-                Console.WriteLine($"Message: {ex.Message}");
-                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-
-                MessageBox.Show($"Error loading assessment: {ex.Message}\n\nCheck console for details.",
-                              "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error loading assessment: " + ex.Message);
             }
         }
         private void StartCountdown()
@@ -266,146 +145,136 @@ namespace Assessment_management_and_performance_evaluation
             TimeSpan timeLeft = TimeSpan.FromSeconds(totalTimeInSeconds);
             label3.Text = "Time Left: " + timeLeft.ToString(@"hh\:mm\:ss");
         }
-        /*private void DisplayCurrentQuestion()
+
+        private void DisplayCurrentQuestion()
         {
             if (currentIndex >= 0 && currentIndex < questionsList.Count)
             {
                 Question currentQuestion = questionsList[currentIndex];
-                // currentQuestion.DisplayCurrentQuestion(panelQuestions, label4, currentIndex, questionsList.Count);
-               Question.DisplayCurrentQuestion(currentQuestion, panelQuestions, label4, currentIndex, questionsList.Count);
 
-            }
-        }*/
+                // Clear previous options and references
+                panelQuestions.Controls.Clear();
+                currentRadioButtons.Clear();
+                currentStructuredAnswerBox = null;
+                currentEssayAnswerBox = null;
 
-        private void DisplayCurrentQuestion()
-        {
-            panelQuestions.SuspendLayout();
-            panelQuestions.Controls.Clear();
+                // Add and update question number and marks
+                questionNO.Location = new Point(20, 10);
+                questionNO.Text = $"Question {currentIndex + 1} of {questionsList.Count} [{currentQuestion.Marks} marks]";
+                panelQuestions.Controls.Add(questionNO);
 
-            try
-            {
-                if (questionsList == null || currentIndex >= questionsList.Count)
-                {
-                    Label errorLabel = new Label
-                    {
-                        Text = "No questions available",
-                        ForeColor = Color.Red,
-                        Location = new Point(20, 20)
-                    };
-                    panelQuestions.Controls.Add(errorLabel);
-                    return;
-                }
-
-                Question current = questionsList[currentIndex];
-                int yPos = 20;
-
-                // 1. Display Question Text
+                // Add question text below the question number
                 Label questionLabel = new Label
                 {
-                    Text = current.QuestionText,
-                    Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                    ForeColor = Color.Black,
-                    Location = new Point(20, yPos),
+                    Text = currentQuestion.QuestionText,
+                    Location = new Point(20, 40),
+                    AutoSize = true,
                     MaximumSize = new Size(panelQuestions.Width - 40, 0),
-                    AutoSize = true
+                    Font = new Font("Segoe UI", 11)
                 };
                 panelQuestions.Controls.Add(questionLabel);
-                yPos += questionLabel.Height + 20;
 
-                // 2. Display based on question type
-                switch (currentAssessmentType?.ToLower())
+                int yPos = questionLabel.Bottom + 20;
+
+                if (currentQuestion.QuestionType?.ToLower() == "multiple choice")
                 {
-                    case "multiple choice":
-                        if (current.Options != null)
-                        {
-                            foreach (var option in current.Options)
-                            {
-                                RadioButton rb = new RadioButton
-                                {
-                                    Text = option.Text,
-                                    Tag = option.IsCorrect,
-                                    Location = new Point(30, yPos),
-                                    AutoSize = true
-                                };
-                                panelQuestions.Controls.Add(rb);
-                                yPos += rb.Height + 10;
-                            }
-                        }
-                        break;
-
-                    case "structured":
-                        TextBox answerBox = new TextBox
-                        {
-                            Multiline = true,
-                            Width = panelQuestions.Width - 60,
-                            Height = 100,
-                            Location = new Point(20, yPos)
-                        };
-                        panelQuestions.Controls.Add(answerBox);
-                        yPos += answerBox.Height + 20;
-                        break;
-
-                    case "essay":
-                        RichTextBox essayBox = new RichTextBox
-                        {
-                            Width = panelQuestions.Width - 60,
-                            Height = 200,
-                            Location = new Point(20, yPos)
-                        };
-                        panelQuestions.Controls.Add(essayBox);
-                        break;
-
-                    default:
-                        Label typeLabel = new Label
-                        {
-                            Text = $"Unknown question type: {currentAssessmentType}",
-                            ForeColor = Color.Red,
-                            Location = new Point(20, yPos)
-                        };
-                        panelQuestions.Controls.Add(typeLabel);
-                        break;
+                    LoadOptionsFromDatabase(currentQuestion.QuestionID);
+                    DisplayMultipleChoiceOptions(currentQuestion, yPos);
+                }
+                else if (currentQuestion.QuestionType?.ToLower() == "structured" || currentQuestion.QuestionType?.ToLower() == "essay")
+                {
+                    DisplayTextAnswer(yPos);
                 }
             }
-            catch (Exception ex)
-            {
-                Label errorLabel = new Label
-                {
-                    Text = $"Error: {ex.Message}",
-                    ForeColor = Color.Red,
-                    Location = new Point(20, 20)
-                };
-                panelQuestions.Controls.Add(errorLabel);
-            }
-            finally
-            {
-                panelQuestions.ResumeLayout(true);
-                panelQuestions.Refresh();
-            }
         }
-        private static void LoadOptionsFromDatabase(Question question)
+
+        private void LoadOptionsFromDatabase(int questionId)
         {
             try
             {
                 using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
                 {
                     conn.Open();
-                    string query = "SELECT OptionA, OptionB, OptionC, OptionD, CorrectAnswer FROM Questions WHERE QuestionID = @questionId";
+                    string query = @"
+                        SELECT QuestionID, QuestionText, OptionA, OptionB, OptionC, OptionD, 
+                               CorrectAnswer, qmarks 
+                        FROM Questions 
+                        WHERE QuestionID = @questionId";
 
                     using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@questionId", question.QuestionID);
+                        cmd.Parameters.AddWithValue("@questionId", questionId);
 
                         using (SQLiteDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
-                                question.Options = new List<Option>();
+                                Question current = questionsList[currentIndex];
+                                current.Options = new List<Option>();
 
-                                // Add all options
-                                question.Options.Add(new Option { Text = reader["OptionA"].ToString(), IsCorrect = reader["OptionA"].ToString() == reader["CorrectAnswer"].ToString() });
-                                question.Options.Add(new Option { Text = reader["OptionB"].ToString(), IsCorrect = reader["OptionB"].ToString() == reader["CorrectAnswer"].ToString() });
-                                question.Options.Add(new Option { Text = reader["OptionC"].ToString(), IsCorrect = reader["OptionC"].ToString() == reader["CorrectAnswer"].ToString() });
-                                question.Options.Add(new Option { Text = reader["OptionD"].ToString(), IsCorrect = reader["OptionD"].ToString() == reader["CorrectAnswer"].ToString() });
+                                // Load marks
+                                int qmarksOrdinal = reader.GetOrdinal("qmarks");
+                                if (!reader.IsDBNull(qmarksOrdinal))
+                                {
+                                    current.Marks = reader.GetInt32(qmarksOrdinal);
+                                    Console.WriteLine($"Loaded marks for question {questionId}: {current.Marks}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"No marks found for question {questionId}");
+                                    current.Marks = 0;
+                                }
+
+                                string correctAnswer = reader.GetString(reader.GetOrdinal("CorrectAnswer"));
+
+                                // Add each non-empty option
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionA")))
+                                    current.Options.Add(new Option
+                                    {
+                                        Text = reader["OptionA"].ToString(),
+                                        IsCorrect = reader["OptionA"].ToString() == correctAnswer
+                                    });
+
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionB")))
+                                    current.Options.Add(new Option
+                                    {
+                                        Text = reader["OptionB"].ToString(),
+                                        IsCorrect = reader["OptionB"].ToString() == correctAnswer
+                                    });
+
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionC")))
+                                    current.Options.Add(new Option
+                                    {
+                                        Text = reader["OptionC"].ToString(),
+                                        IsCorrect = reader["OptionC"].ToString() == correctAnswer
+                                    });
+
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionD")))
+                                    current.Options.Add(new Option
+                                    {
+                                        Text = reader["OptionD"].ToString(),
+                                        IsCorrect = reader["OptionD"].ToString() == correctAnswer
+                                    });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"No question found with ID {questionId}");
+                            }
+                        }
+                    }
+
+                    // Debug: Show all columns in Questions table
+                    string debugQuery = "PRAGMA table_info(Questions)";
+                    using (SQLiteCommand cmd = new SQLiteCommand(debugQuery, conn))
+                    {
+                        using (SQLiteDataReader reader = cmd.ExecuteReader())
+                        {
+                            Console.WriteLine("Questions table columns:");
+                            while (reader.Read())
+                            {
+                                string columnName = reader["name"].ToString();
+                                string columnType = reader["type"].ToString();
+                                Console.WriteLine($"Column: {columnName}, Type: {columnType}");
                             }
                         }
                     }
@@ -413,40 +282,156 @@ namespace Assessment_management_and_performance_evaluation
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading options: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error loading options: {ex.Message}\nStack trace: {ex.StackTrace}");
             }
         }
 
-        public string GetAnswerFromPanel(Panel panel, string questionType)
+        private void DisplayMultipleChoiceOptions(Question question, int startY)
+        {
+            if (question.Options == null || question.Options.Count == 0)
+                return;
+
+            int yPos = startY;
+            foreach (var option in question.Options)
+            {
+                if (!string.IsNullOrEmpty(option.Text))
+                {
+                    RadioButton rb = new RadioButton
+                    {
+                        Text = option.Text,
+                        Location = new Point(40, yPos),
+                        AutoSize = true,
+                        Font = new Font("Segoe UI", 10),
+                        Tag = option.IsCorrect
+                    };
+                    panelQuestions.Controls.Add(rb);
+                    currentRadioButtons.Add(rb);
+                    yPos += rb.Height + 10;
+                }
+            }
+        }
+
+        private void DisplayTextAnswer(int yPos)
+        {
+            Question currentQuestion = questionsList[currentIndex];
+            string questionType = currentQuestion.QuestionType?.ToLower();
+
+            if (questionType == "structured")
+            {
+                // For structured questions, use a regular TextBox
+                currentStructuredAnswerBox = new TextBox
+                {
+                    Width = panelQuestions.Width - 40,
+                    Height = 100,
+                    Multiline = true,
+                    Top = yPos,
+                    Left = 20,
+                    Tag = "Answer",
+                    Font = new Font("Segoe UI", 10),
+                    ScrollBars = ScrollBars.Vertical,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+                panelQuestions.Controls.Add(currentStructuredAnswerBox);
+            }
+            else // Default to essay type for any non-multiple choice question
+            {
+                // For essay questions, use a RichTextBox
+                currentEssayAnswerBox = new RichTextBox
+                {
+                    Width = panelQuestions.Width - 40,
+                    Height = 200, // Larger height for essays
+                    Top = yPos,
+                    Left = 20,
+                    Tag = "Answer",
+                    Font = new Font("Segoe UI", 10),
+                    BackColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    AcceptsTab = true,
+                    EnableAutoDragDrop = true
+                };
+                panelQuestions.Controls.Add(currentEssayAnswerBox);
+            }
+        }
+
+        private void SaveAnswer(string answerText, bool? isCorrect = null)
         {
             try
             {
-                switch (questionType.ToLower())
+                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
                 {
-                    case "multiple choice":
-                        var selectedRadio = panel.Controls.OfType<RadioButton>().FirstOrDefault(r => r.Checked);
-                        return selectedRadio?.Tag?.ToString() ?? string.Empty;
+                    conn.Open();
 
-                    case "structured":
-                        var textBox = panel.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Tag?.ToString() == "Answer");
-                        return textBox?.Text.Trim() ?? string.Empty;
+                    // For multiple choice, verify against correct answer in Questions table
+                    if (currentAssessmentType?.ToLower() == "multiple choice")
+                    {
+                        string verifyQuery = @"
+                            SELECT CorrectAnswer, qmarks 
+                            FROM Questions 
+                            WHERE QuestionID = @questionId";
 
-                    case "essay":
-                        var richTextBox = panel.Controls.OfType<RichTextBox>().FirstOrDefault(rtb => rtb.Tag?.ToString() == "Answer");
-                        return richTextBox?.Text.Trim() ?? string.Empty;
+                        using (SQLiteCommand cmd = new SQLiteCommand(verifyQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@questionId", questionsList[currentIndex].QuestionID);
+                            using (SQLiteDataReader reader = cmd.ExecuteReader())
+                            {
+                                if (reader.Read())
+                                {
+                                    string correctAnswer = reader.GetString(reader.GetOrdinal("CorrectAnswer"));
+                                    isCorrect = (answerText == correctAnswer);
+                                }
+                            }
+                        }
+                    }
 
-                    default:
-                        return string.Empty;
+                    // Save the answer with verified correctness
+                    string insertQuery = @"
+                        INSERT OR REPLACE INTO Answers 
+                        (StudentID, AssessmentID, QuestionID, AnswerText, IsCorrect) 
+                        VALUES 
+                        (@studentId, @assessmentId, @questionId, @answerText, @isCorrect)";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(insertQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@studentId", loggedInUserId);
+                        cmd.Parameters.AddWithValue("@assessmentId", assessmentId);
+                        cmd.Parameters.AddWithValue("@questionId", questionsList[currentIndex].QuestionID);
+                        cmd.Parameters.AddWithValue("@answerText", answerText);
+                        cmd.Parameters.AddWithValue("@isCorrect", isCorrect);
+
+                        cmd.ExecuteNonQuery();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error retrieving answer: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return string.Empty;
+                MessageBox.Show("Error saving answer: " + ex.Message);
             }
         }
 
-        // In student_dashboard.cs, modify the button click handler to pass question type
+        private string GetAnswerFromPanel()
+        {
+            if (currentIndex >= 0 && currentIndex < questionsList.Count)
+            {
+                Question currentQuestion = questionsList[currentIndex];
+                string questionType = currentQuestion.QuestionType?.ToLower();
+
+                if (questionType == "multiple choice")
+                {
+                    var selectedButton = currentRadioButtons.FirstOrDefault(rb => rb.Checked);
+                    return selectedButton?.Text ?? string.Empty;
+                }
+                else if (questionType == "structured")
+                {
+                    return currentStructuredAnswerBox?.Text ?? string.Empty;
+                }
+                else // essay or any other type
+                {
+                    return currentEssayAnswerBox?.Text ?? string.Empty;
+                }
+            }
+            return string.Empty;
+        }
+
         private void guna2Button3_Click(object sender, EventArgs e)
         {
             try
@@ -480,7 +465,7 @@ namespace Assessment_management_and_performance_evaluation
                 }
 
                 // 5. Get and validate answer
-                string answer = student.GetAnswerFromPanel(panelQuestions, currentAssessmentType);
+                string answer = GetAnswerFromPanel();
                 if (string.IsNullOrEmpty(answer))
                 {
                     MessageBox.Show("Please provide an answer before proceeding!", "Warning",
@@ -489,7 +474,7 @@ namespace Assessment_management_and_performance_evaluation
                 }
 
                 // 6. Save answer
-                student.SaveAnswer(loggedInUserId, current.QuestionID, answer);
+                SaveAnswer(answer);
 
                 // 7. Move to next question or finish
                 currentIndex++;
@@ -513,11 +498,106 @@ namespace Assessment_management_and_performance_evaluation
                 Console.WriteLine($"Error in guna2Button3_Click: {ex.ToString()}");
             }
         }
-        // Add this to student_dashboard.cs to store the assessment type
+
         private string currentAssessmentType;
 
-        // Modify LoadAssessment to get the assessment type
-        
+        private void guna2Button1_Click(object sender, EventArgs e)
+        {
+            if (AssessmentTitles.SelectedItem == null)
+            {
+                MessageBox.Show("Please select an assessment first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            KeyValuePair<int, string> selectedAssessment = (KeyValuePair<int, string>)AssessmentTitles.SelectedItem;
+            currentAssessmentID = selectedAssessment.Key;
+
+            // Load the assessment questions
+            LoadAssessment();
+
+            // Switch to tabPage2
+            guna2TabControl1.SelectedIndex = 1; // This will select the second tab (index 1)
+        }
+
+        private void guna2Button1_Click_1(object sender, EventArgs e)
+        {
+            if (AssessmentTitles.SelectedItem == null)
+            {
+                MessageBox.Show("Please select an assessment first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            KeyValuePair<int, string> selectedAssessment = (KeyValuePair<int, string>)AssessmentTitles.SelectedItem;
+            currentAssessmentID = selectedAssessment.Key;
+
+            // Load the assessment questions
+            LoadAssessment();
+
+            // Switch to tabPage2
+            guna2TabControl1.SelectedIndex = 1; // This will select the second tab (index 1)
+        }
+
+        private void student_dashboard_Load(object sender, EventArgs e)
+        {
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+
+                    // Load student information
+                    string studentQuery = "SELECT FirstName, LastName, ClassLevel, StudentImage FROM Students WHERE UserID = @userId";
+                    using (SQLiteCommand cmd = new SQLiteCommand(studentQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@userId", loggedInUserId);
+                        using (SQLiteDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                Fname.Text = reader["FirstName"].ToString();
+                                Sname.Text = reader["LastName"].ToString();
+                                int classLevel = Convert.ToInt32(reader["ClassLevel"]);
+
+                                // Load student image
+                                if (!reader.IsDBNull(reader.GetOrdinal("StudentImage")))
+                                {
+                                    byte[] imageData = (byte[])reader["StudentImage"];
+                                    using (MemoryStream ms = new MemoryStream(imageData))
+                                    {
+                                        guna2PictureBox1.Image = Image.FromStream(ms);
+                                    }
+                                }
+
+                                // Load assessment titles for the student's class level
+                                string assessmentQuery = "SELECT AssessmentID, Title FROM Assessments WHERE ClassLevel = @level";
+                                using (SQLiteCommand assessCmd = new SQLiteCommand(assessmentQuery, conn))
+                                {
+                                    assessCmd.Parameters.AddWithValue("@level", classLevel);
+
+                                    AssessmentTitles.Items.Clear();
+                                    using (SQLiteDataReader assessReader = assessCmd.ExecuteReader())
+                                    {
+                                        while (assessReader.Read())
+                                        {
+                                            string title = assessReader["Title"].ToString();
+                                            int id = Convert.ToInt32(assessReader["AssessmentID"]);
+                                            AssessmentTitles.Items.Add(new KeyValuePair<int, string>(id, title));
+                                        }
+                                    }
+                                    AssessmentTitles.DisplayMember = "Value";
+                                    AssessmentTitles.ValueMember = "Key";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading dashboard: " + ex.Message);
+            }
+        }
+
         private void guna2TextBox3_TextChanged(object sender, EventArgs e)
         {
 
@@ -570,16 +650,94 @@ namespace Assessment_management_and_performance_evaluation
 
         private void guna2Button2_Click(object sender, EventArgs e)
         {
+            if (!IsAnswerSelected())
+            {
+                MessageBox.Show("Please provide an answer before proceeding!", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
+            // Save the current answer
+            if (currentAssessmentType?.ToLower() == "multiple choice")
+            {
+                var selectedButton = currentRadioButtons.FirstOrDefault(rb => rb.Checked);
+                if (selectedButton != null)
+                {
+                    SaveAnswer(selectedButton.Text, (bool)selectedButton.Tag);
+                }
+            }
+            else if (currentAssessmentType?.ToLower() == "structured" || currentAssessmentType?.ToLower() == "essay")
+            {
+                if (currentAssessmentType?.ToLower() == "structured")
+                {
+                    if (currentStructuredAnswerBox != null)
+                    {
+                        SaveAnswer(currentStructuredAnswerBox.Text);
+                    }
+                }
+                else if (currentAssessmentType?.ToLower() == "essay")
+                {
+                    if (currentEssayAnswerBox != null)
+                    {
+                        SaveAnswer(currentEssayAnswerBox.Text);
+                    }
+                }
+            }
+
+            // Move to next question
+            if (currentIndex < questionsList.Count - 1)
+            {
+                currentIndex++;
+                DisplayCurrentQuestion();
+            }
+            else
+            {
+                MessageBox.Show("This is the last question.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
-       /* private void guna2Button3_Click(object sender, EventArgs e)
+        private void guna2Button1_Click_2(object sender, EventArgs e)
+        {
+            if (currentIndex > 0)
+            {
+                currentIndex--;
+                DisplayCurrentQuestion();
+            }
+            else
+            {
+                MessageBox.Show("This is the first question.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private bool IsAnswerSelected()
+        {
+            if (currentIndex >= 0 && currentIndex < questionsList.Count)
+            {
+                Question currentQuestion = questionsList[currentIndex];
+                string questionType = currentQuestion.QuestionType?.ToLower();
+
+                if (questionType == "multiple choice")
+                {
+                    return currentRadioButtons.Any(rb => rb.Checked);
+                }
+                else if (questionType == "structured")
+                {
+                    return currentStructuredAnswerBox != null && !string.IsNullOrWhiteSpace(currentStructuredAnswerBox.Text);
+                }
+                else // essay or any other type
+                {
+                    return currentEssayAnswerBox != null && !string.IsNullOrWhiteSpace(currentEssayAnswerBox.Text);
+                }
+            }
+            return false;
+        }
+
+        private void guna2Button3_Click_1(object sender, EventArgs e)
         {
             if (currentIndex < questionsList.Count)
             {
                 Question current = questionsList[currentIndex];
                 Student student = new Student();
-                string answer = student.GetAnswerFromPanel(panelQuestions);
+                string answer = GetAnswerFromPanel();
                 student.SaveAnswer(loggedInUserId, current.QuestionID, answer);
 
                 currentIndex++;
@@ -594,17 +752,7 @@ namespace Assessment_management_and_performance_evaluation
                 }
             }
         }
-       */
-        private void student_dashboard_Load(object sender, EventArgs e)
-        {
-            try
-            {
-                LoadAssessment();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error loading dashboard: " + ex.Message);
-            }
-        }
+
+        private Label questionNO;  // Field declaration
     }
 }

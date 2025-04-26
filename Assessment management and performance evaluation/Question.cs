@@ -14,8 +14,6 @@ namespace Assessment_management_and_performance_evaluation
 {
     internal class Question
     {
-
-
         public string Text { get; set; }
         public string Answer { get; set; }
 
@@ -28,6 +26,7 @@ namespace Assessment_management_and_performance_evaluation
         public Question()
         {
             Options = new List<Option>(); // Initialize options list
+            Marks = 0; // Default marks to 0
         }
 
         public static void DisplayCurrentQuestion(Question q, Panel panel, Label lblProgress, int index, int total)
@@ -36,45 +35,54 @@ namespace Assessment_management_and_performance_evaluation
             {
                 panel.Controls.Clear();
 
+                // Display question text with marks
                 Label questionLabel = new Label
                 {
-                    Text = q.QuestionText,
+                    Text = $"{q.QuestionText} [{q.Marks} marks]",
                     AutoSize = true,
                     Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                    Location = new Point(10, 10)
+                    Location = new Point(10, 10),
+                    MaximumSize = new Size(panel.Width - 20, 0)
                 };
                 panel.Controls.Add(questionLabel);
 
-                // ✅ Show options if it's multiple choice
-                if (q.QuestionType == "Multiple Choice" && q.Options != null && q.Options.Count > 0)
+                int verticalPosition = questionLabel.Bottom + 10;
+
+                // Show options if it's multiple choice
+                if (q.QuestionType?.ToLower() == "multiple choice" && q.Options != null && q.Options.Count > 0)
                 {
-                    int topOffset = questionLabel.Bottom + 20;
                     foreach (var option in q.Options)
                     {
-                        RadioButton radio = new RadioButton
+                        RadioButton rb = new RadioButton
                         {
                             Text = option.Text,
                             AutoSize = true,
-                            Location = new Point(10, topOffset)
+                            Location = new Point(30, verticalPosition),
+                            Tag = option.Text,
+                            Font = new Font("Segoe UI", 10)
                         };
-                        panel.Controls.Add(radio);
-                        topOffset += 30;
+                        panel.Controls.Add(rb);
+                        verticalPosition += rb.Height + 10;
                     }
                 }
-                else // ✅ For essay or structured, use answer box
+                else // For essay/structured questions
                 {
                     TextBox answerBox = new TextBox
                     {
-                        Width = 400,
-                        Top = questionLabel.Bottom + 10,
+                        Width = panel.Width - 40,
+                        Height = 200, // Increased height for essay questions
+                        Multiline = true,
+                        ScrollBars = ScrollBars.Vertical,
+                        Top = verticalPosition,
                         Left = 10,
-                        Tag = "Answer"
+                        Tag = "Answer",
+                        Font = new Font("Segoe UI", 10)
                     };
                     panel.Controls.Add(answerBox);
                 }
 
-                // ✅ Display question number
-                lblProgress.Text = $"Question {index + 1} of {total}";
+                // Display question number with marks
+                lblProgress.Text = $"Question {index + 1} of {total} - {q.Marks} marks";
             }
             catch (Exception ex)
             {
@@ -94,7 +102,7 @@ namespace Assessment_management_and_performance_evaluation
                     // Debug output
                     Console.WriteLine($"Loading questions for assessment ID: {assessmentId}");
 
-                    string query = @"SELECT QuestionID, QuestionText, OptionA, OptionB, OptionC, OptionD, CorrectAnswer 
+                    string query = @"SELECT QuestionID, QuestionText, OptionA, OptionB, OptionC, OptionD, CorrectAnswer, qmarks, questiontype 
                           FROM Questions 
                           WHERE AssessmentID = @assessmentID";
 
@@ -116,6 +124,30 @@ namespace Assessment_management_and_performance_evaluation
                                     Options = new List<Option>()
                                 };
 
+                                // Load question type
+                                if (!reader.IsDBNull(reader.GetOrdinal("questiontype")))
+                                {
+                                    question.QuestionType = reader.GetString(reader.GetOrdinal("questiontype"));
+                                    Console.WriteLine($"Loaded question type for question {question.QuestionID}: {question.QuestionType}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"No question type found for question {question.QuestionID}");
+                                    question.QuestionType = "multiple choice"; // Default to multiple choice
+                                }
+
+                                // Load marks
+                                if (!reader.IsDBNull(reader.GetOrdinal("qmarks")))
+                                {
+                                    question.Marks = reader.GetInt32(reader.GetOrdinal("qmarks"));
+                                    Console.WriteLine($"Loaded marks for question {question.QuestionID}: {question.Marks}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"No marks found for question {question.QuestionID}");
+                                    question.Marks = 0;
+                                }
+
                                 // Add options if they exist
                                 if (!reader.IsDBNull(reader.GetOrdinal("OptionA")))
                                 {
@@ -125,8 +157,30 @@ namespace Assessment_management_and_performance_evaluation
                                         IsCorrect = reader.GetString(reader.GetOrdinal("CorrectAnswer")) == reader.GetString(reader.GetOrdinal("OptionA"))
                                     });
                                 }
-
-                                // Repeat for OptionB, OptionC, OptionD...
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionB")))
+                                {
+                                    question.Options.Add(new Option
+                                    {
+                                        Text = reader.GetString(reader.GetOrdinal("OptionB")),
+                                        IsCorrect = reader.GetString(reader.GetOrdinal("CorrectAnswer")) == reader.GetString(reader.GetOrdinal("OptionB"))
+                                    });
+                                }
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionC")))
+                                {
+                                    question.Options.Add(new Option
+                                    {
+                                        Text = reader.GetString(reader.GetOrdinal("OptionC")),
+                                        IsCorrect = reader.GetString(reader.GetOrdinal("CorrectAnswer")) == reader.GetString(reader.GetOrdinal("OptionC"))
+                                    });
+                                }
+                                if (!reader.IsDBNull(reader.GetOrdinal("OptionD")))
+                                {
+                                    question.Options.Add(new Option
+                                    {
+                                        Text = reader.GetString(reader.GetOrdinal("OptionD")),
+                                        IsCorrect = reader.GetString(reader.GetOrdinal("CorrectAnswer")) == reader.GetString(reader.GetOrdinal("OptionD"))
+                                    });
+                                }
 
                                 questions.Add(question);
 
@@ -146,15 +200,15 @@ namespace Assessment_management_and_performance_evaluation
         }
     }
 
-    // ✅ Define the Option Class
+    // Define the Option Class
     internal class Option
     {
         public string Text { get; set; }
         public bool IsCorrect { get; set; } // True if correct option
-    
 
 
-   
-      
+
+
+
     }
 }
