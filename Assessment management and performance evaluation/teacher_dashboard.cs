@@ -19,16 +19,22 @@ namespace Assessment_management_and_performance_evaluation
         private string currentSection = "";
         private bool sectionActive = false;
         private List<Question> questionsList = new List<Question>(); // Store questions
-       // private List<Panel> questionPanels = new List<Panel>();
-
-
-
+        private Panel AssessmentPanel; // Panel for displaying assessment details
 
         public teacher_dashboard(int userId)
         {
             InitializeComponent();
             loggedInUserId = userId;
             teacher = new Teacher();
+
+            // Initialize and configure the AssessmentPanel
+            AssessmentPanel = new Panel
+            {
+                Name = "AssessmentPanel",
+                Dock = DockStyle.Fill,
+                AutoScroll = true
+            };
+            this.Controls.Add(AssessmentPanel);
         }
 
         private void teacher_dashboard_Load(object sender, EventArgs e)
@@ -77,17 +83,17 @@ namespace Assessment_management_and_performance_evaluation
                 return;
             }
 
-            // ✅ Get values from NumericUpDown
+            // Get values from NumericUpDown
             int timeLimit = (int)guna2NumericUpDown1.Value; // Time in hours
             int selectedClass = (int)guna2NumericUpDown2.Value; // Class level
 
-            // ✅ Convert timeLimit to string before assigning it
+            // Convert timeLimit to string before assigning it
             teacher.AssessmentTimeLimit = timeLimit.ToString(); // Convert int to string
 
-            // ✅ Generate question structure
+            // Generate question structure
             teacher.GenerateQuestionStructure(selectedSection, panelQuestions);
 
-            // ✅ Store question in list
+            // Store question in list
             Question newQuestion = new Question
             {
                 QuestionText = "", // Empty for now, teacher will fill in
@@ -493,6 +499,81 @@ namespace Assessment_management_and_performance_evaluation
                 }
             }
         }
+
+        private void guna2Button7_Click_1(object sender, EventArgs e)
+        {
+            // Get the selected assessment from AnsweredQue DataGridView
+            if (AnsweredQue.SelectedRows.Count > 0)
+            {
+                int assessmentId = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["AssessmentID"].Value);
+                int studentId = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["StudentID"].Value);
+
+                // Clear existing controls in AssessmentPanel
+                AssessmentPanel.Controls.Clear();
+
+                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+                    string query = @"
+                        SELECT q.QuestionText, a.AnswerText, q.Marks
+                        FROM Questions q
+                        LEFT JOIN Answers a ON q.QuestionID = a.QuestionID 
+                        AND a.StudentID = @studentId
+                        WHERE q.AssessmentID = @assessmentId
+                        ORDER BY q.QuestionID";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@assessmentId", assessmentId);
+                        cmd.Parameters.AddWithValue("@studentId", studentId);
+
+                        using (SQLiteDataReader reader = cmd.ExecuteReader())
+                        {
+                            int yPos = 10;
+                            while (reader.Read())
+                            {
+                                // Create and add question label
+                                Label questionLabel = new Label
+                                {
+                                    Text = $"Question: {reader["QuestionText"]}",
+                                    Location = new Point(10, yPos),
+                                    AutoSize = true,
+                                    Font = new Font("Showcard Gothic", 10)
+                                };
+                                AssessmentPanel.Controls.Add(questionLabel);
+                                yPos += 30;
+
+                                // Create and add answer label
+                                Label answerLabel = new Label
+                                {
+                                    Text = $"Answer: {reader["AnswerText"]}",
+                                    Location = new Point(10, yPos),
+                                    AutoSize = true,
+                                    Font = new Font("Segoe UI", 9)
+                                };
+                                AssessmentPanel.Controls.Add(answerLabel);
+                                yPos += 30;
+
+                                // Create and add marks label
+                                Label marksLabel = new Label
+                                {
+                                    Text = $"Marks: {reader["Marks"]}",
+                                    Location = new Point(10, yPos),
+                                    AutoSize = true,
+                                    Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                                };
+                                AssessmentPanel.Controls.Add(marksLabel);
+                                yPos += 40; // Extra space between questions
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please select an assessment to view.", "No Assessment Selected", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
     }
 }
-
