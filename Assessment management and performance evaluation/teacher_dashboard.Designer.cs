@@ -29,12 +29,15 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle13 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle14 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle15 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle16 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle17 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle18 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea1 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea2 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
+            System.Windows.Forms.DataVisualization.Charting.Legend legend2 = new System.Windows.Forms.DataVisualization.Charting.Legend();
+            System.Windows.Forms.DataVisualization.Charting.Series series2 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
             this.guna2TabControl1 = new Guna.UI2.WinForms.Guna2TabControl();
             this.Std_Registraster = new System.Windows.Forms.TabPage();
             this.guna2NumericUpDown3 = new Guna.UI2.WinForms.Guna2NumericUpDown();
@@ -68,11 +71,11 @@
             this.txtAssessmentTitle = new Guna.UI2.WinForms.Guna2TextBox();
             this.panelQuestions = new Guna.UI2.WinForms.Guna2ShadowPanel();
             this.View_assessments = new System.Windows.Forms.TabPage();
+            this.chart2 = new System.Windows.Forms.DataVisualization.Charting.Chart();
+            this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.label3 = new System.Windows.Forms.Label();
-            this.guna2Button6 = new Guna.UI2.WinForms.Guna2Button();
             this.guna2Button5 = new Guna.UI2.WinForms.Guna2Button();
             this.guna2Button4 = new Guna.UI2.WinForms.Guna2Button();
-            this.assessments = new Guna.UI2.WinForms.Guna2DataGridView();
             this.selectAssessments = new System.Windows.Forms.TabPage();
             this.guna2Button7 = new Guna.UI2.WinForms.Guna2Button();
             this.label12 = new System.Windows.Forms.Label();
@@ -82,7 +85,6 @@
             this.guna2Button9 = new Guna.UI2.WinForms.Guna2Button();
             this.guna2Button8 = new Guna.UI2.WinForms.Guna2Button();
             this.guna2ShadowPanel1 = new Guna.UI2.WinForms.Guna2ShadowPanel();
-            this.markQ = new Guna.UI2.WinForms.Guna2NumericUpDown();
             this.guna2ControlBox2 = new Guna.UI2.WinForms.Guna2ControlBox();
             this.guna2ControlBox1 = new Guna.UI2.WinForms.Guna2ControlBox();
             this.guna2ControlBox3 = new Guna.UI2.WinForms.Guna2ControlBox();
@@ -96,11 +98,11 @@
             ((System.ComponentModel.ISupportInitialize)(this.guna2NumericUpDown2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.guna2NumericUpDown1)).BeginInit();
             this.View_assessments.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.assessments)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chart2)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chart1)).BeginInit();
             this.selectAssessments.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.AnsweredQue)).BeginInit();
             this.Assessment.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.markQ)).BeginInit();
             this.SuspendLayout();
             // 
             // guna2TabControl1
@@ -614,17 +616,49 @@
             // View_assessments
             // 
             this.View_assessments.BackColor = System.Drawing.SystemColors.Control;
+            this.View_assessments.Controls.Add(this.chart2);
+            this.View_assessments.Controls.Add(this.chart1);
             this.View_assessments.Controls.Add(this.label3);
-            this.View_assessments.Controls.Add(this.guna2Button6);
             this.View_assessments.Controls.Add(this.guna2Button5);
             this.View_assessments.Controls.Add(this.guna2Button4);
-            this.View_assessments.Controls.Add(this.assessments);
             this.View_assessments.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
             this.View_assessments.Location = new System.Drawing.Point(4, 44);
             this.View_assessments.Name = "View_assessments";
             this.View_assessments.Size = new System.Drawing.Size(950, 554);
             this.View_assessments.TabIndex = 2;
             this.View_assessments.Text = "View assessments";
+            // 
+            // chart2
+            // 
+            chartArea1.Name = "ChartArea1";
+            this.chart2.ChartAreas.Add(chartArea1);
+            legend1.Name = "Legend1";
+            this.chart2.Legends.Add(legend1);
+            this.chart2.Location = new System.Drawing.Point(518, 67);
+            this.chart2.Name = "chart2";
+            series1.ChartArea = "ChartArea1";
+            series1.Legend = "Legend1";
+            series1.Name = "Series1";
+            this.chart2.Series.Add(series1);
+            this.chart2.Size = new System.Drawing.Size(300, 267);
+            this.chart2.TabIndex = 33;
+            this.chart2.Text = "chart2";
+            // 
+            // chart1
+            // 
+            chartArea2.Name = "ChartArea1";
+            this.chart1.ChartAreas.Add(chartArea2);
+            legend2.Name = "Legend1";
+            this.chart1.Legends.Add(legend2);
+            this.chart1.Location = new System.Drawing.Point(17, 75);
+            this.chart1.Name = "chart1";
+            series2.ChartArea = "ChartArea1";
+            series2.Legend = "Legend1";
+            series2.Name = "Series1";
+            this.chart1.Series.Add(series2);
+            this.chart1.Size = new System.Drawing.Size(300, 259);
+            this.chart1.TabIndex = 32;
+            this.chart1.Text = "chart1";
             // 
             // label3
             // 
@@ -635,24 +669,6 @@
             this.label3.Size = new System.Drawing.Size(614, 36);
             this.label3.TabIndex = 31;
             this.label3.Text = "view Available Created assessments";
-            // 
-            // guna2Button6
-            // 
-            this.guna2Button6.Animated = true;
-            this.guna2Button6.AutoRoundedCorners = true;
-            this.guna2Button6.BorderRadius = 21;
-            this.guna2Button6.DisabledState.BorderColor = System.Drawing.Color.DarkGray;
-            this.guna2Button6.DisabledState.CustomBorderColor = System.Drawing.Color.DarkGray;
-            this.guna2Button6.DisabledState.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(169)))), ((int)(((byte)(169)))), ((int)(((byte)(169)))));
-            this.guna2Button6.DisabledState.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(141)))), ((int)(((byte)(141)))), ((int)(((byte)(141)))));
-            this.guna2Button6.FillColor = System.Drawing.Color.Black;
-            this.guna2Button6.Font = new System.Drawing.Font("Showcard Gothic", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.guna2Button6.ForeColor = System.Drawing.Color.White;
-            this.guna2Button6.Location = new System.Drawing.Point(402, 396);
-            this.guna2Button6.Name = "guna2Button6";
-            this.guna2Button6.Size = new System.Drawing.Size(180, 45);
-            this.guna2Button6.TabIndex = 30;
-            this.guna2Button6.Text = "Edit Assessment";
             // 
             // guna2Button5
             // 
@@ -690,56 +706,6 @@
             this.guna2Button4.TabIndex = 28;
             this.guna2Button4.Text = "View assessment";
             this.guna2Button4.Click += new System.EventHandler(this.guna2Button4_Click);
-            // 
-            // assessments
-            // 
-            dataGridViewCellStyle13.BackColor = System.Drawing.Color.White;
-            this.assessments.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle13;
-            dataGridViewCellStyle14.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle14.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(88)))), ((int)(((byte)(255)))));
-            dataGridViewCellStyle14.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
-            dataGridViewCellStyle14.ForeColor = System.Drawing.Color.White;
-            dataGridViewCellStyle14.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle14.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle14.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.assessments.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle14;
-            this.assessments.ColumnHeadersHeight = 4;
-            this.assessments.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
-            dataGridViewCellStyle15.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle15.BackColor = System.Drawing.Color.White;
-            dataGridViewCellStyle15.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
-            dataGridViewCellStyle15.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
-            dataGridViewCellStyle15.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(231)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
-            dataGridViewCellStyle15.SelectionForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
-            dataGridViewCellStyle15.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.assessments.DefaultCellStyle = dataGridViewCellStyle15;
-            this.assessments.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(231)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
-            this.assessments.Location = new System.Drawing.Point(40, 68);
-            this.assessments.Name = "assessments";
-            this.assessments.RowHeadersVisible = false;
-            this.assessments.Size = new System.Drawing.Size(889, 310);
-            this.assessments.TabIndex = 0;
-            this.assessments.ThemeStyle.AlternatingRowsStyle.BackColor = System.Drawing.Color.White;
-            this.assessments.ThemeStyle.AlternatingRowsStyle.Font = null;
-            this.assessments.ThemeStyle.AlternatingRowsStyle.ForeColor = System.Drawing.Color.Empty;
-            this.assessments.ThemeStyle.AlternatingRowsStyle.SelectionBackColor = System.Drawing.Color.Empty;
-            this.assessments.ThemeStyle.AlternatingRowsStyle.SelectionForeColor = System.Drawing.Color.Empty;
-            this.assessments.ThemeStyle.BackColor = System.Drawing.Color.White;
-            this.assessments.ThemeStyle.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(231)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
-            this.assessments.ThemeStyle.HeaderStyle.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(88)))), ((int)(((byte)(255)))));
-            this.assessments.ThemeStyle.HeaderStyle.BorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.None;
-            this.assessments.ThemeStyle.HeaderStyle.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
-            this.assessments.ThemeStyle.HeaderStyle.ForeColor = System.Drawing.Color.White;
-            this.assessments.ThemeStyle.HeaderStyle.HeaightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
-            this.assessments.ThemeStyle.HeaderStyle.Height = 4;
-            this.assessments.ThemeStyle.ReadOnly = false;
-            this.assessments.ThemeStyle.RowsStyle.BackColor = System.Drawing.Color.White;
-            this.assessments.ThemeStyle.RowsStyle.BorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
-            this.assessments.ThemeStyle.RowsStyle.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
-            this.assessments.ThemeStyle.RowsStyle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
-            this.assessments.ThemeStyle.RowsStyle.Height = 22;
-            this.assessments.ThemeStyle.RowsStyle.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(231)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
-            this.assessments.ThemeStyle.RowsStyle.SelectionForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
             // 
             // selectAssessments
             // 
@@ -785,26 +751,26 @@
             // 
             // AnsweredQue
             // 
-            dataGridViewCellStyle16.BackColor = System.Drawing.Color.White;
-            this.AnsweredQue.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle16;
-            dataGridViewCellStyle17.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle17.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(88)))), ((int)(((byte)(255)))));
-            dataGridViewCellStyle17.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
-            dataGridViewCellStyle17.ForeColor = System.Drawing.Color.White;
-            dataGridViewCellStyle17.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle17.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle17.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.AnsweredQue.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle17;
+            dataGridViewCellStyle1.BackColor = System.Drawing.Color.White;
+            this.AnsweredQue.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(88)))), ((int)(((byte)(255)))));
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
+            dataGridViewCellStyle2.ForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.AnsweredQue.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
             this.AnsweredQue.ColumnHeadersHeight = 4;
             this.AnsweredQue.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
-            dataGridViewCellStyle18.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle18.BackColor = System.Drawing.Color.White;
-            dataGridViewCellStyle18.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
-            dataGridViewCellStyle18.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
-            dataGridViewCellStyle18.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(231)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
-            dataGridViewCellStyle18.SelectionForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
-            dataGridViewCellStyle18.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.AnsweredQue.DefaultCellStyle = dataGridViewCellStyle18;
+            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle3.BackColor = System.Drawing.Color.White;
+            dataGridViewCellStyle3.Font = new System.Drawing.Font("Showcard Gothic", 9.75F, System.Drawing.FontStyle.Bold);
+            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
+            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(231)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
+            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(69)))), ((int)(((byte)(94)))));
+            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.AnsweredQue.DefaultCellStyle = dataGridViewCellStyle3;
             this.AnsweredQue.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(231)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
             this.AnsweredQue.Location = new System.Drawing.Point(31, 122);
             this.AnsweredQue.Name = "AnsweredQue";
@@ -835,7 +801,6 @@
             // 
             // Assessment
             // 
-            this.Assessment.Controls.Add(this.markQ);
             this.Assessment.Controls.Add(this.label13);
             this.Assessment.Controls.Add(this.guna2Button9);
             this.Assessment.Controls.Add(this.guna2Button8);
@@ -875,6 +840,7 @@
             this.guna2Button9.Size = new System.Drawing.Size(180, 45);
             this.guna2Button9.TabIndex = 35;
             this.guna2Button9.Text = "previous question";
+            this.guna2Button9.Click += new System.EventHandler(this.guna2Button9_Click);
             // 
             // guna2Button8
             // 
@@ -906,22 +872,6 @@
             this.guna2ShadowPanel1.Size = new System.Drawing.Size(917, 306);
             this.guna2ShadowPanel1.TabIndex = 3;
             this.guna2ShadowPanel1.Paint += new System.Windows.Forms.PaintEventHandler(this.guna2ShadowPanel1_Paint);
-            // 
-            // markQ
-            // 
-            this.markQ.AutoRoundedCorners = true;
-            this.markQ.BackColor = System.Drawing.Color.Transparent;
-            this.markQ.BorderRadius = 17;
-            this.markQ.Cursor = System.Windows.Forms.Cursors.IBeam;
-            this.markQ.FillColor = System.Drawing.Color.WhiteSmoke;
-            this.markQ.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.markQ.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
-            this.markQ.Location = new System.Drawing.Point(467, 415);
-            this.markQ.Name = "markQ";
-            this.markQ.Size = new System.Drawing.Size(100, 36);
-            this.markQ.TabIndex = 37;
-            this.markQ.UpDownButtonFillColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(192)))), ((int)(((byte)(192)))));
-            this.markQ.UseTransparentBackground = true;
             // 
             // guna2ControlBox2
             // 
@@ -990,13 +940,13 @@
             ((System.ComponentModel.ISupportInitialize)(this.guna2NumericUpDown1)).EndInit();
             this.View_assessments.ResumeLayout(false);
             this.View_assessments.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.assessments)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chart2)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chart1)).EndInit();
             this.selectAssessments.ResumeLayout(false);
             this.selectAssessments.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.AnsweredQue)).EndInit();
             this.Assessment.ResumeLayout(false);
             this.Assessment.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.markQ)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1019,10 +969,8 @@
         private System.Windows.Forms.Label label5;
         private Guna.UI2.WinForms.Guna2Button guna2Button2;
         private Guna.UI2.WinForms.Guna2Button guna2Button3;
-        private Guna.UI2.WinForms.Guna2Button guna2Button6;
         private Guna.UI2.WinForms.Guna2Button guna2Button5;
         private Guna.UI2.WinForms.Guna2Button guna2Button4;
-        private Guna.UI2.WinForms.Guna2DataGridView assessments;
         private System.Windows.Forms.Label label3;
         private Guna.UI2.WinForms.Guna2Button btnSaveAssessment;
         private Guna.UI2.WinForms.Guna2ControlBox guna2ControlBox3;
@@ -1054,6 +1002,7 @@
         private Guna.UI2.WinForms.Guna2Button guna2Button9;
         private Guna.UI2.WinForms.Guna2Button guna2Button8;
         private System.Windows.Forms.Label label13;
-        private Guna.UI2.WinForms.Guna2NumericUpDown markQ;
+        private System.Windows.Forms.DataVisualization.Charting.Chart chart1;
+        private System.Windows.Forms.DataVisualization.Charting.Chart chart2;
     }
 }

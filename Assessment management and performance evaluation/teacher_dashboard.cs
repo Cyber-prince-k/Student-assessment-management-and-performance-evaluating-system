@@ -17,8 +17,15 @@ namespace Assessment_management_and_performance_evaluation
         private Teacher teacher;
         private string currentSection = "";
         private bool sectionActive = false;
-        private List<Question> questionsList = new List<Question>(); // Store questions
-        private Panel AssessmentPanel; // Panel for displaying assessment details
+        private List<Question> questionsList = new List<Question>();
+        private Panel AssessmentPanel;
+        private int currentAssessmentId;
+        private int currentStudentId;
+        private Dictionary<int, NumericUpDown> questionMarkControls = new Dictionary<int, NumericUpDown>();
+        private int totalAssessmentMarks = 0;
+        private int currentQuestionIndex = 0;
+        private List<(int QuestionId, string QuestionType, string QuestionText, string Answer, int MaxMarks, int? MarksGiven)> questions = 
+            new List<(int, string, string, string, int, int?)>();
 
         public teacher_dashboard(int teacherId)
         {
@@ -562,30 +569,75 @@ namespace Assessment_management_and_performance_evaluation
 
         private void guna2Button7_Click_1(object sender, EventArgs e)
         {
-            if (AnsweredQue.SelectedRows.Count > 0)
+            try
             {
-                currentAssessmentId = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["AssessmentID"].Value);
-                currentStudentId = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["StudentID"].Value);
-                
-                // Clear existing controls and data
-                guna2ShadowPanel1.Controls.Clear();
-                questionMarkControls.Clear();
-                questions.Clear();
-                totalAssessmentMarks = 0;
-                currentQuestionIndex = 0;
-
-                LoadQuestions();
-
-                if (questions.Count > 0)
+                if (AnsweredQue.SelectedRows.Count > 0)
                 {
-                    ShowCurrentQuestion();
-                    // Switch to Assessment tab (index 2 for Assessment tab)
-                    guna2TabControl1.SelectedIndex = 2;
+                    // Get selected assessment details
+                    int studentId = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["StudentID"].Value);
+                    string assessmentTitle = AnsweredQue.SelectedRows[0].Cells["AssessmentTitle"].Value.ToString();
+
+                    // Check if already marked
+                    if (IsAssessmentMarked(studentId, assessmentTitle))
+                    {
+                        MessageBox.Show("This assessment has already been marked.", 
+                            "Already Marked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // If not marked, proceed with loading the assessment
+                    currentAssessmentId = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["AssessmentID"].Value);
+                    currentStudentId = studentId;
+                    totalAssessmentMarks = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["TotalMarks"].Value);
+
+                    // Clear existing controls and data
+                    guna2ShadowPanel1.Controls.Clear();
+                    questionMarkControls.Clear();
+                    questions.Clear();
+                    currentQuestionIndex = 0;
+
+                    LoadQuestions();
+
+                    if (questions.Count > 0)
+                    {
+                        ShowCurrentQuestion();
+                        guna2ShadowPanel1.Visible = true;
+                    }
+                    else
+                    {
+                        MessageBox.Show("No structured or essay questions found in this assessment.", 
+                            "No Questions", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
                 else
                 {
-                    MessageBox.Show("No structured or essay questions found in this assessment.", 
-                        "No Questions", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Please select an assessment to mark.", 
+                        "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error selecting assessment: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private bool IsAssessmentMarked(int studentId, string assessmentTitle)
+        {
+            using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+            {
+                conn.Open();
+                string query = @"
+                    SELECT COUNT(*) 
+                    FROM SubjectsMarked 
+                    WHERE StudentID = @studentId 
+                    AND AssessmentTitle = @title";
+
+                using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@studentId", studentId);
+                    cmd.Parameters.AddWithValue("@title", assessmentTitle);
+                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
                 }
             }
         }
@@ -653,14 +705,24 @@ namespace Assessment_management_and_performance_evaluation
                     BorderStyle = BorderStyle.FixedSingle
                 };
 
+                // Question Counter Label
+                Label counterLabel = new Label
+                {
+                    Text = $"Question {currentQuestionIndex + 1} of {questions.Count}",
+                    Location = new Point(5, 5),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                };
+                questionPanel.Controls.Add(counterLabel);
+
                 // Question Label
                 Label questionLabel = new Label
                 {
-                    Text = $"Question {currentQuestionIndex + 1} of {questions.Count} ({question.QuestionType}):\n{question.QuestionText}",
-                    Location = new Point(5, 5),
+                    Text = $"({question.QuestionType}): {question.QuestionText}",
+                    Location = new Point(5, 25),
                     Width = questionPanel.Width - 10,
                     Height = 50,
-                    Font = new Font("Segoe UI", 10, FontStyle.Bold)
+                    Font = new Font("Segoe UI", 10)
                 };
                 questionPanel.Controls.Add(questionLabel);
 
@@ -668,7 +730,7 @@ namespace Assessment_management_and_performance_evaluation
                 Label answerLabel = new Label
                 {
                     Text = $"Answer:\n{question.Answer}",
-                    Location = new Point(5, 65),
+                    Location = new Point(5, 85),
                     Width = questionPanel.Width - 10,
                     Height = 80,
                     Font = new Font("Segoe UI", 9)
@@ -679,7 +741,7 @@ namespace Assessment_management_and_performance_evaluation
                 Label maxMarksLabel = new Label
                 {
                     Text = $"Maximum Marks: {question.MaxMarks}",
-                    Location = new Point(5, 155),
+                    Location = new Point(5, 170),
                     AutoSize = true,
                     Font = new Font("Segoe UI", 9)
                 };
@@ -688,7 +750,7 @@ namespace Assessment_management_and_performance_evaluation
                 // Marks Input
                 NumericUpDown markInput = new NumericUpDown
                 {
-                    Location = new Point(120, 155),
+                    Location = new Point(120, 168),
                     Width = 60,
                     Maximum = question.MaxMarks,
                     Minimum = 0,
@@ -697,32 +759,7 @@ namespace Assessment_management_and_performance_evaluation
                 questionPanel.Controls.Add(markInput);
                 questionMarkControls[question.QuestionId] = markInput;
 
-                // Add Marks Button
-                Button addMarksButton = new Button
-                {
-                    Text = "Add Marks",
-                    Location = new Point(10, questionPanel.Bottom + 10),
-                    Width = 120
-                };
-                addMarksButton.Click += (s, e) => {
-                    // Save current question's marks
-                    SaveCurrentQuestionMarks(question.QuestionId, markInput);
-
-                    if (currentQuestionIndex < questions.Count - 1)
-                    {
-                        // Move to next question
-                        currentQuestionIndex++;
-                        ShowCurrentQuestion();
-                    }
-                    else if (AreAllQuestionsMarked())
-                    {
-                        // This is the last question and all questions are marked
-                        CalculateAndSaveFinalGrade();
-                    }
-                };
-
                 guna2ShadowPanel1.Controls.Add(questionPanel);
-                guna2ShadowPanel1.Controls.Add(addMarksButton);
             }
         }
 
@@ -749,16 +786,13 @@ namespace Assessment_management_and_performance_evaluation
             }
         }
 
-        private List<(int QuestionId, string QuestionType, string QuestionText, string Answer, int MaxMarks, int? MarksGiven)> questions = 
-            new List<(int, string, string, string, int, int?)>();
-
         private bool AreAllQuestionsMarked()
         {
             using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
             {
                 conn.Open();
                 string query = @"
-                    SELECT COUNT(*) 
+                    SELECT COUNT(*) as UnmarkedCount
                     FROM Questions q
                     LEFT JOIN AssessmentGrades ag 
                         ON q.QuestionID = ag.QuestionID 
@@ -777,81 +811,43 @@ namespace Assessment_management_and_performance_evaluation
             }
         }
 
-        private void CalculateAndSaveFinalGrade()
+        private void LoadAnsweredAssessments()
         {
             try
             {
                 using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
                 {
                     conn.Open();
-                    using (SQLiteTransaction transaction = conn.BeginTransaction())
+                    string query = @"
+                        SELECT DISTINCT a.AssessmentID, a.Title as AssessmentTitle, a.TotalMarks, 
+                               s.StudentID, s.FirstName || ' ' || s.LastName as StudentName
+                        FROM Answers ans
+                        JOIN Assessments a ON ans.AssessmentID = a.AssessmentID
+                        JOIN Students s ON ans.StudentID = s.StudentID
+                        LEFT JOIN SubjectsMarked sm 
+                            ON sm.StudentID = s.StudentID 
+                            AND sm.AssessmentTitle = a.Title
+                        WHERE sm.Status IS NULL
+                        ORDER BY a.Title";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
                     {
-                        try
+                        using (SQLiteDataAdapter adapter = new SQLiteDataAdapter(cmd))
                         {
-                            // Calculate total marks obtained
-                            string marksQuery = @"
-                                SELECT SUM(MarksGiven) 
-                                FROM AssessmentGrades 
-                                WHERE AssessmentID = @assessmentId 
-                                AND StudentID = @studentId";
-
-                            int marksObtained = 0;
-                            using (SQLiteCommand cmd = new SQLiteCommand(marksQuery, conn))
-                            {
-                                cmd.Parameters.AddWithValue("@assessmentId", currentAssessmentId);
-                                cmd.Parameters.AddWithValue("@studentId", currentStudentId);
-                                marksObtained = Convert.ToInt32(cmd.ExecuteScalar());
-                            }
-
-                            // Calculate pass/fail status
-                            string status = marksObtained >= (totalAssessmentMarks / 2) ? "Pass" : "Fail";
-
-                            // Save final grade
-                            string resultQuery = @"
-                                INSERT INTO SubjectsMarked 
-                                (StudentID, AssessmentTitle, MarksObtained, TotalMarks, Status)
-                                VALUES 
-                                (@studentId, @title, @obtained, @total, @status)";
-
-                            using (SQLiteCommand cmd = new SQLiteCommand(resultQuery, conn))
-                            {
-                                string assessmentTitle = AnsweredQue.SelectedRows[0].Cells["AssessmentTitle"].Value.ToString();
-                                
-                                cmd.Parameters.AddWithValue("@studentId", currentStudentId);
-                                cmd.Parameters.AddWithValue("@title", assessmentTitle);
-                                cmd.Parameters.AddWithValue("@obtained", marksObtained);
-                                cmd.Parameters.AddWithValue("@total", totalAssessmentMarks);
-                                cmd.Parameters.AddWithValue("@status", status);
-
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            transaction.Commit();
-
-                            MessageBox.Show($"Assessment grading completed!\nTotal Marks: {marksObtained}/{totalAssessmentMarks}\nStatus: {status}", 
-                                "Grading Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw;
+                            DataTable dt = new DataTable();
+                            adapter.Fill(dt);
+                            AnsweredQue.DataSource = dt;
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving final grade: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error loading assessments: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private int currentAssessmentId;
-        private int currentStudentId;
-        private Dictionary<int, NumericUpDown> questionMarkControls = new Dictionary<int, NumericUpDown>();
-        private int totalAssessmentMarks = 0;
-        private int currentQuestionIndex = 0;
-
-        private void guna2Button8_Click(object sender, EventArgs e)
+        private void CalculateAndSaveFinalGrade()
         {
             try
             {
@@ -864,34 +860,13 @@ namespace Assessment_management_and_performance_evaluation
                     {
                         try
                         {
-                            // Save individual question grades
-                            foreach (var questionMark in questionMarkControls)
+                            foreach (var mark in questionMarkControls)
                             {
-                                string gradeQuery = @"
-                                    INSERT OR REPLACE INTO AssessmentGrades 
-                                    (AssessmentID, QuestionID, StudentID, TeacherID, MarksGiven)
-                                    VALUES 
-                                    (@assessmentId, @questionId, @studentId, @teacherId, @marksGiven)";
-
-                                using (SQLiteCommand cmd = new SQLiteCommand(gradeQuery, conn))
-                                {
-                                    cmd.Parameters.AddWithValue("@assessmentId", currentAssessmentId);
-                                    cmd.Parameters.AddWithValue("@questionId", questionMark.Key);
-                                    cmd.Parameters.AddWithValue("@studentId", currentStudentId);
-                                    cmd.Parameters.AddWithValue("@teacherId", 1); // Change to your actual teacher ID
-                                    
-                                    int marks = (int)questionMark.Value.Value;
-                                    cmd.Parameters.AddWithValue("@marksGiven", marks);
-                                    marksObtained += marks;
-
-                                    cmd.ExecuteNonQuery();
-                                }
+                                marksObtained += (int)mark.Value.Value;
                             }
 
-                            // Calculate pass/fail status
                             string status = marksObtained >= (totalAssessmentMarks / 2) ? "Pass" : "Fail";
 
-                            // Save overall assessment result
                             string resultQuery = @"
                                 INSERT INTO SubjectsMarked 
                                 (StudentID, AssessmentTitle, MarksObtained, TotalMarks, Status)
@@ -915,6 +890,12 @@ namespace Assessment_management_and_performance_evaluation
 
                             MessageBox.Show($"Assessment graded successfully!\nTotal Marks: {marksObtained}/{totalAssessmentMarks}\nStatus: {status}", 
                                 "Grading Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                            // Clear current assessment data
+                            questions.Clear();
+                            questionMarkControls.Clear();
+                            currentQuestionIndex = 0;
+                            guna2ShadowPanel1.Visible = false;
                         }
                         catch
                         {
@@ -926,7 +907,134 @@ namespace Assessment_management_and_performance_evaluation
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving grades: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error saving final grade: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void guna2Button8_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Get current question's marks input
+                if (currentQuestionIndex >= 0 && currentQuestionIndex < questions.Count)
+                {
+                    var currentQuestion = questions[currentQuestionIndex];
+                    var markInput = questionMarkControls[currentQuestion.QuestionId];
+
+                    // Validate marks for current question
+                    if (markInput.Value > currentQuestion.MaxMarks)
+                    {
+                        MessageBox.Show($"Marks cannot exceed the maximum marks ({currentQuestion.MaxMarks}) for this question.", 
+                            "Invalid Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // Calculate total marks that would be given
+                    int totalGivenMarks = 0;
+                    foreach (var mark in questionMarkControls)
+                    {
+                        if (mark.Key != currentQuestion.QuestionId)  // Add other questions' marks
+                        {
+                            totalGivenMarks += (int)mark.Value.Value;
+                        }
+                    }
+                    totalGivenMarks += (int)markInput.Value;  // Add current question's marks
+
+                    // Validate total marks
+                    if (totalGivenMarks > totalAssessmentMarks)
+                    {
+                        MessageBox.Show($"Total marks ({totalGivenMarks}) cannot exceed the assessment total marks ({totalAssessmentMarks}).", 
+                            "Invalid Total Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // Save current question marks
+                    SaveCurrentQuestionMarks(currentQuestion.QuestionId, markInput);
+
+                    // Move to next question if available
+                    if (currentQuestionIndex < questions.Count - 1)
+                    {
+                        currentQuestionIndex++;
+                        ShowCurrentQuestion();
+                    }
+                    else if (AreAllQuestionsMarked())
+                    {
+                        // All questions are marked, calculate final grade
+                        CalculateAndSaveFinalGrade();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Please mark all questions before calculating final grade.", 
+                            "Marking Incomplete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving marks: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void guna2Button9_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Check if there is a previous question
+                if (currentQuestionIndex > 0)
+                {
+                    // Save current question marks before moving
+                    if (questions.Count > 0)
+                    {
+                        var currentQuestion = questions[currentQuestionIndex];
+                        if (questionMarkControls.ContainsKey(currentQuestion.QuestionId))
+                        {
+                            var markInput = questionMarkControls[currentQuestion.QuestionId];
+                            
+                            // Validate marks for current question
+                            if (markInput.Value > currentQuestion.MaxMarks)
+                            {
+                                MessageBox.Show($"Marks cannot exceed the maximum marks ({currentQuestion.MaxMarks}) for this question.", 
+                                    "Invalid Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+
+                            // Calculate total marks that would be given
+                            int totalGivenMarks = 0;
+                            foreach (var mark in questionMarkControls)
+                            {
+                                if (mark.Key != currentQuestion.QuestionId)
+                                {
+                                    totalGivenMarks += (int)mark.Value.Value;
+                                }
+                            }
+                            totalGivenMarks += (int)markInput.Value;
+
+                            // Validate total marks
+                            if (totalGivenMarks > totalAssessmentMarks)
+                            {
+                                MessageBox.Show($"Total marks ({totalGivenMarks}) cannot exceed the assessment total marks ({totalAssessmentMarks}).", 
+                                    "Invalid Total Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+
+                            SaveCurrentQuestionMarks(currentQuestion.QuestionId, markInput);
+                        }
+                    }
+
+                    // Move to previous question
+                    currentQuestionIndex--;
+                    ShowCurrentQuestion();
+                }
+                else
+                {
+                    MessageBox.Show("This is the first question.", 
+                        "Navigation", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error navigating to previous question: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
