@@ -177,7 +177,7 @@ namespace Assessment_management_and_performance_evaluation
         }
 
         // Method to verify password hash
-        private bool VerifyPassword(string inputPassword, string storedHashedPassword)
+        public bool VerifyPassword(string inputPassword, string storedHashedPassword)
         {
             string hashedInput = HashPassword(inputPassword);
             return hashedInput == storedHashedPassword;

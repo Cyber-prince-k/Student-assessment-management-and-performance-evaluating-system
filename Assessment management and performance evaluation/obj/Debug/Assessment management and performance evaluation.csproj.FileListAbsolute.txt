@@ -135,3 +135,7 @@ C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-sy
 C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-system\Assessment management and performance evaluation\obj\Debug\Assessme.372F54C7.Up2Date
 C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-system\Assessment management and performance evaluation\obj\Debug\Assessment management and performance evaluation.exe
 C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-system\Assessment management and performance evaluation\obj\Debug\Assessment management and performance evaluation.pdb
+C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-system\Assessment management and performance evaluation\bin\Debug\BouncyCastle.Cryptography.dll
+C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-system\Assessment management and performance evaluation\bin\Debug\itextsharp.dll
+C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-system\Assessment management and performance evaluation\bin\Debug\BouncyCastle.Cryptography.xml
+C:\Users\princ\Music\Student-assessment-management-and-performance-evaluating-system\Assessment management and performance evaluation\bin\Debug\itextsharp.xml

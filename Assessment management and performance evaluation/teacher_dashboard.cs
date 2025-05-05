@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using System.Data.SQLite;
 using System.Windows.Forms;
 using System.IO;
+using System.Net.Mail;
+using System.Net;
 
 namespace Assessment_management_and_performance_evaluation
 {
@@ -24,7 +26,7 @@ namespace Assessment_management_and_performance_evaluation
         private Dictionary<int, NumericUpDown> questionMarkControls = new Dictionary<int, NumericUpDown>();
         private int totalAssessmentMarks = 0;
         private int currentQuestionIndex = 0;
-        private List<(int QuestionId, string QuestionType, string QuestionText, string Answer, int MaxMarks, int? MarksGiven)> questions = 
+        private List<(int QuestionId, string QuestionType, string QuestionText, string Answer, int MaxMarks, int? MarksGiven)> questions =
             new List<(int, string, string, string, int, int?)>();
 
         public teacher_dashboard(int teacherId)
@@ -46,43 +48,57 @@ namespace Assessment_management_and_performance_evaluation
         {
             try
             {
-                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                LoadAnsweredAssessments();
+                UpdateDashboardAnalytics();
+                LoadStudentsIntoComboBox();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading dashboard: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void LoadAnsweredAssessments()
+        {
+            try
+            {
+                using (var conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
                 {
                     conn.Open();
-                    string query = @"
-                        SELECT 
-                            a.AssessmentID,
-                            ans.StudentID,
-                            s.FirstName || ' ' || s.LastName as StudentName,
-                            a.Title as AssessmentTitle,
-                            date(ans.SubmissionTime) as SubmissionDate,
-                            COUNT(DISTINCT q.QuestionID) as TotalQuestions,
-                            SUM(CASE WHEN ans.IsCorrect = 1 THEN q.qmarks ELSE 0 END) as TotalScore
-                        FROM Assessments a
-                        JOIN Answers ans ON a.AssessmentID = ans.AssessmentID
-                        JOIN Questions q ON ans.QuestionID = q.QuestionID
-                        JOIN Students s ON ans.StudentID = s.UserID
-                        GROUP BY a.AssessmentID, ans.StudentID, s.FirstName, s.LastName, a.Title, date(ans.SubmissionTime)
-                        ORDER BY date(ans.SubmissionTime) DESC";
 
-                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    const string query = @"
+                SELECT 
+                    a.AssessmentID,
+                    ans.StudentID,
+                    s.FirstName || ' ' || s.LastName as StudentName,
+                    a.Title as AssessmentTitle,
+                    date(ans.SubmissionTime) as SubmissionDate,
+                    COUNT(DISTINCT q.QuestionID) as TotalQuestions,
+                    SUM(CASE WHEN ans.IsCorrect = 1 THEN q.qmarks ELSE 0 END) as TotalScore,
+                    SUM(q.qmarks) as TotalMarks
+                FROM Assessments a
+                JOIN Answers ans ON a.AssessmentID = ans.AssessmentID
+                JOIN Questions q ON ans.QuestionID = q.QuestionID
+                JOIN Students s ON ans.StudentID = s.UserID
+                GROUP BY a.AssessmentID, ans.StudentID, s.FirstName, s.LastName, a.Title, date(ans.SubmissionTime)
+                ORDER BY date(ans.SubmissionTime) DESC";
+
+                    using (var cmd = new SQLiteCommand(query, conn))
                     {
-                        // Create a DataTable to hold the results
-                        DataTable dt = new DataTable();
-                        using (SQLiteDataAdapter adapter = new SQLiteDataAdapter(cmd))
+                        var dt = new DataTable();
+                        using (var adapter = new SQLiteDataAdapter(cmd))
                         {
                             adapter.Fill(dt);
                         }
 
-                        // Convert SubmissionDate strings to proper DateTime objects
                         if (dt.Columns.Contains("SubmissionDate"))
                         {
                             foreach (DataRow row in dt.Rows)
                             {
                                 if (row["SubmissionDate"] != DBNull.Value)
                                 {
-                                    string dateStr = row["SubmissionDate"].ToString();
-                                    if (DateTime.TryParse(dateStr, out DateTime parsedDate))
+                                    if (DateTime.TryParse(row["SubmissionDate"].ToString(), out var parsedDate))
                                     {
                                         row["SubmissionDate"] = parsedDate.Date;
                                     }
@@ -90,11 +106,8 @@ namespace Assessment_management_and_performance_evaluation
                             }
                         }
 
-                        // Bind the DataTable to the DataGridView
                         AnsweredQue.DataSource = dt;
 
-                        // Format the columns for better display
-                        AnsweredQue.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
                         if (AnsweredQue.Columns.Contains("SubmissionDate"))
                         {
                             AnsweredQue.Columns["SubmissionDate"].DefaultCellStyle.Format = "yyyy-MM-dd";
@@ -104,7 +117,144 @@ namespace Assessment_management_and_performance_evaluation
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading answered assessments: " + ex.Message, 
+                throw new Exception("Error loading answered assessments: " + ex.Message);
+            }
+        }
+
+        private void UpdateDashboardAnalytics()
+        {
+            try
+            {
+                using (var conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+
+                    // 1. Get student performance data
+                    const string performanceQuery = @"
+                WITH RankedAssessments AS (
+                    SELECT 
+                        a.StudentID,
+                        a.AssessmentID,
+                        SUM(CASE WHEN a.IsCorrect = 1 THEN COALESCE(q.qmarks, 0) ELSE 0 END) as Score,
+                        MAX(a.SubmissionTime) as SubmissionTime,
+                        ROW_NUMBER() OVER (PARTITION BY a.StudentID ORDER BY MAX(a.SubmissionTime) DESC) as rn
+                    FROM Answers a
+                    JOIN Questions q ON a.QuestionID = q.QuestionID
+                    GROUP BY a.StudentID, a.AssessmentID
+                )
+                SELECT 
+                    s.UserID as StudentID,
+                    s.FirstName || ' ' || s.LastName as StudentName,
+                    COALESCE(r1.Score, 0) as RecentScore,
+                    COALESCE(r2.Score, 0) as PreviousScore
+                FROM Students s
+                LEFT JOIN RankedAssessments r1 ON s.UserID = r1.StudentID AND r1.rn = 1
+                LEFT JOIN RankedAssessments r2 ON s.UserID = r2.StudentID AND r2.rn = 2
+                WHERE EXISTS (SELECT 1 FROM Answers WHERE StudentID = s.UserID)";
+
+                    var studentScores = new List<(string Name, double Recent, double Previous)>();
+                    var improvingStudents = new List<string>();
+                    var nonImprovingStudents = new List<string>();
+
+                    using (var cmd = new SQLiteCommand(performanceQuery, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string studentName = reader["StudentName"].ToString();
+                            double recentScore = reader["RecentScore"] == DBNull.Value ? 0 : Convert.ToDouble(reader["RecentScore"]);
+                            double previousScore = reader["PreviousScore"] == DBNull.Value ? 0 : Convert.ToDouble(reader["PreviousScore"]);
+
+                            studentScores.Add((studentName, recentScore, previousScore));
+
+                            if (recentScore > previousScore)
+                                improvingStudents.Add(studentName);
+                            else if (recentScore <= previousScore)
+                                nonImprovingStudents.Add(studentName);
+                        }
+                    }
+
+                    // Update chart
+                    chart1.Series.Clear();
+                    var series = chart1.Series.Add("Student Performance");
+                    series.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Column;
+
+                    foreach (var score in studentScores)
+                    {
+                        series.Points.AddXY(score.Name, score.Recent);
+                    }
+
+                    // Update text boxes
+                    richTextBox1.Text = "Improving Students:\n\n" +
+                        (improvingStudents.Count > 0 ? string.Join("\n", improvingStudents) : "No improving students found.");
+
+                    richTextBox2.Text = "Non-Improving Students:\n\n" +
+                        (nonImprovingStudents.Count > 0 ? string.Join("\n", nonImprovingStudents) : "No non-improving students found.");
+
+                    // 2. Get trouble areas
+                    const string troubleAreasQuery = @"
+                SELECT 
+                    q.QuestionText,
+                    COUNT(DISTINCT a.StudentID) as TotalAttempts,
+                    SUM(CASE WHEN COALESCE(a.IsCorrect, 0) = 0 THEN 1 ELSE 0 END) as FailCount,
+                    CAST(SUM(CASE WHEN COALESCE(a.IsCorrect, 0) = 0 THEN 1 ELSE 0 END) AS FLOAT) * 100.0 / 
+                    COUNT(DISTINCT a.StudentID) as FailureRate
+                FROM Questions q
+                LEFT JOIN Answers a ON q.QuestionID = a.QuestionID
+                GROUP BY q.QuestionID, q.QuestionText
+                HAVING FailureRate > 50 AND TotalAttempts > 0
+                ORDER BY FailureRate DESC";
+
+                    var troubleAreasLabel = new Label();
+                    troubleAreasLabel.AutoSize = true;
+                    troubleAreasLabel.Dock = DockStyle.Fill;
+                    troubleAreasLabel.Text = "Trouble Areas:\n\n";
+
+                    using (var cmd = new SQLiteCommand(troubleAreasQuery, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string questionText = reader["QuestionText"].ToString();
+                            double failureRate = Convert.ToDouble(reader["FailureRate"]);
+                            troubleAreasLabel.Text += $"{questionText} (Failure Rate: {failureRate:F1}%)\n";
+                        }
+                    }
+
+                    if (troubleAreasLabel.Text == "Trouble Areas:\n\n")
+                    {
+                        troubleAreasLabel.Text += "No significant trouble areas found.";
+                    }
+
+                    troubleAreas.Controls.Clear();
+                    troubleAreas.Controls.Add(troubleAreasLabel);
+
+                    // 3. Get passing students count
+                    const string passingQuery = @"
+                SELECT COUNT(DISTINCT a.StudentID) as PassingCount
+                FROM Answers a
+                JOIN Questions q ON a.QuestionID = q.QuestionID
+                WHERE a.AssessmentID = (
+                    SELECT AssessmentID 
+                    FROM Assessments 
+                    ORDER BY AssessmentDateTime DESC 
+                    LIMIT 1
+                )
+                GROUP BY a.StudentID
+                HAVING CAST(SUM(CASE WHEN a.IsCorrect = 1 THEN COALESCE(q.qmarks, 0) ELSE 0 END) AS FLOAT) * 100.0 / 
+                       NULLIF(SUM(COALESCE(q.qmarks, 0)), 0) >= 50";
+
+                    using (var cmd = new SQLiteCommand(passingQuery, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        int passingCount = result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
+                        guna2HtmlLabel6.Text = $"Passing Students: {passingCount}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error updating dashboard analytics: {ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -134,7 +284,7 @@ namespace Assessment_management_and_performance_evaluation
 
         }
         // Enable the combo box only when section ends
-       
+
         private void guna2Button2_Click(object sender, EventArgs e)
         {
             if (!sectionActive)
@@ -458,7 +608,7 @@ namespace Assessment_management_and_performance_evaluation
             return Guid.NewGuid().ToString("N").Substring(0, 8); // 8-character random password
         }
 
-        
+
         private int lastAssessmentID = -1; // Store the last inserted AssessmentID
         private void btnSaveAssessment_Click(object sender, EventArgs e)
         {
@@ -580,7 +730,7 @@ namespace Assessment_management_and_performance_evaluation
                     // Check if already marked
                     if (IsAssessmentMarked(studentId, assessmentTitle))
                     {
-                        MessageBox.Show("This assessment has already been marked.", 
+                        MessageBox.Show("This assessment has already been marked.",
                             "Already Marked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -605,19 +755,19 @@ namespace Assessment_management_and_performance_evaluation
                     }
                     else
                     {
-                        MessageBox.Show("No structured or essay questions found in this assessment.", 
+                        MessageBox.Show("No structured or essay questions found in this assessment.",
                             "No Questions", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
                 else
                 {
-                    MessageBox.Show("Please select an assessment to mark.", 
+                    MessageBox.Show("Please select an assessment to mark.",
                         "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error selecting assessment: {ex.Message}", 
+                MessageBox.Show($"Error selecting assessment: {ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -811,42 +961,6 @@ namespace Assessment_management_and_performance_evaluation
             }
         }
 
-        private void LoadAnsweredAssessments()
-        {
-            try
-            {
-                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
-                {
-                    conn.Open();
-                    string query = @"
-                        SELECT DISTINCT a.AssessmentID, a.Title as AssessmentTitle, a.TotalMarks, 
-                               s.StudentID, s.FirstName || ' ' || s.LastName as StudentName
-                        FROM Answers ans
-                        JOIN Assessments a ON ans.AssessmentID = a.AssessmentID
-                        JOIN Students s ON ans.StudentID = s.StudentID
-                        LEFT JOIN SubjectsMarked sm 
-                            ON sm.StudentID = s.StudentID 
-                            AND sm.AssessmentTitle = a.Title
-                        WHERE sm.Status IS NULL
-                        ORDER BY a.Title";
-
-                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
-                    {
-                        using (SQLiteDataAdapter adapter = new SQLiteDataAdapter(cmd))
-                        {
-                            DataTable dt = new DataTable();
-                            adapter.Fill(dt);
-                            AnsweredQue.DataSource = dt;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading assessments: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         private void CalculateAndSaveFinalGrade()
         {
             try
@@ -876,7 +990,7 @@ namespace Assessment_management_and_performance_evaluation
                             using (SQLiteCommand cmd = new SQLiteCommand(resultQuery, conn))
                             {
                                 string assessmentTitle = AnsweredQue.SelectedRows[0].Cells["AssessmentTitle"].Value.ToString();
-                                
+
                                 cmd.Parameters.AddWithValue("@studentId", currentStudentId);
                                 cmd.Parameters.AddWithValue("@title", assessmentTitle);
                                 cmd.Parameters.AddWithValue("@obtained", marksObtained);
@@ -888,7 +1002,7 @@ namespace Assessment_management_and_performance_evaluation
 
                             transaction.Commit();
 
-                            MessageBox.Show($"Assessment graded successfully!\nTotal Marks: {marksObtained}/{totalAssessmentMarks}\nStatus: {status}", 
+                            MessageBox.Show($"Assessment graded successfully!\nTotal Marks: {marksObtained}/{totalAssessmentMarks}\nStatus: {status}",
                                 "Grading Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                             // Clear current assessment data
@@ -924,7 +1038,7 @@ namespace Assessment_management_and_performance_evaluation
                     // Validate marks for current question
                     if (markInput.Value > currentQuestion.MaxMarks)
                     {
-                        MessageBox.Show($"Marks cannot exceed the maximum marks ({currentQuestion.MaxMarks}) for this question.", 
+                        MessageBox.Show($"Marks cannot exceed the maximum marks ({currentQuestion.MaxMarks}) for this question.",
                             "Invalid Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -943,7 +1057,7 @@ namespace Assessment_management_and_performance_evaluation
                     // Validate total marks
                     if (totalGivenMarks > totalAssessmentMarks)
                     {
-                        MessageBox.Show($"Total marks ({totalGivenMarks}) cannot exceed the assessment total marks ({totalAssessmentMarks}).", 
+                        MessageBox.Show($"Total marks ({totalGivenMarks}) cannot exceed the assessment total marks ({totalAssessmentMarks}).",
                             "Invalid Total Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
@@ -964,7 +1078,7 @@ namespace Assessment_management_and_performance_evaluation
                     }
                     else
                     {
-                        MessageBox.Show("Please mark all questions before calculating final grade.", 
+                        MessageBox.Show("Please mark all questions before calculating final grade.",
                             "Marking Incomplete", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
@@ -989,11 +1103,11 @@ namespace Assessment_management_and_performance_evaluation
                         if (questionMarkControls.ContainsKey(currentQuestion.QuestionId))
                         {
                             var markInput = questionMarkControls[currentQuestion.QuestionId];
-                            
+
                             // Validate marks for current question
                             if (markInput.Value > currentQuestion.MaxMarks)
                             {
-                                MessageBox.Show($"Marks cannot exceed the maximum marks ({currentQuestion.MaxMarks}) for this question.", 
+                                MessageBox.Show($"Marks cannot exceed the maximum marks ({currentQuestion.MaxMarks}) for this question.",
                                     "Invalid Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 return;
                             }
@@ -1012,7 +1126,7 @@ namespace Assessment_management_and_performance_evaluation
                             // Validate total marks
                             if (totalGivenMarks > totalAssessmentMarks)
                             {
-                                MessageBox.Show($"Total marks ({totalGivenMarks}) cannot exceed the assessment total marks ({totalAssessmentMarks}).", 
+                                MessageBox.Show($"Total marks ({totalGivenMarks}) cannot exceed the assessment total marks ({totalAssessmentMarks}).",
                                     "Invalid Total Marks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 return;
                             }
@@ -1027,13 +1141,13 @@ namespace Assessment_management_and_performance_evaluation
                 }
                 else
                 {
-                    MessageBox.Show("This is the first question.", 
+                    MessageBox.Show("This is the first question.",
                         "Navigation", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error navigating to previous question: {ex.Message}", 
+                MessageBox.Show($"Error navigating to previous question: {ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1047,5 +1161,280 @@ namespace Assessment_management_and_performance_evaluation
         {
 
         }
+
+
+        // Add this class within the teacher_dashboard class
+        private class AssessmentEmailService
+        {
+            private string smtpAddress = "smtp.gmail.com";
+            private int port = 587;
+            private string emailFrom = "princekamnga1@gmail.com";
+            private string password = "bqvybghkgprijkcg"; // Consider moving to config
+
+            public void SendAssessmentReport(int studentId, string parentEmail)
+            {
+                try
+                {
+                    using (var mail = new MailMessage())
+                    using (var smtp = new SmtpClient(smtpAddress, port))
+                    {
+                        mail.From = new MailAddress(emailFrom);
+                        mail.To.Add(parentEmail);
+                        mail.Subject = "Student Assessment Report";
+                        mail.Body = GenerateEmailBody(studentId);
+                        mail.IsBodyHtml = true;
+
+                        // Attach PDF report
+                        var pdfBytes = GeneratePdfReport(studentId);
+                        mail.Attachments.Add(new Attachment(new MemoryStream(pdfBytes), "Report.pdf"));
+
+                        smtp.Credentials = new NetworkCredential(emailFrom, password);
+                        smtp.EnableSsl = true;
+                        smtp.Send(mail);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error sending email: {ex.Message}", "Email Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+            private string GenerateEmailBody(int studentId)
+            {
+                var studentInfo = GetStudentInfo(studentId);
+                return $@"
+            <h3>Dear Parent/Guardian,</h3>
+            <p>Here is {studentInfo.Name}'s final assessment report for {DateTime.Now.Year}:</p>
+            <ul>
+                <li>Class Position: {studentInfo.ClassPosition}</li>
+                <li>Overall Grade: {studentInfo.OverallGrade}</li>
+                <li>Total Subjects: {studentInfo.Subjects.Count}</li>
+            </ul>
+            <p>See attached PDF for detailed marks breakdown.</p>
+            <p>Best regards,<br/>School Administration</p>";
+            }
+
+            private byte[] GeneratePdfReport(int studentId)
+            {
+                var studentInfo = GetStudentInfo(studentId);
+                var sb = new StringBuilder();
+
+                sb.AppendLine($"Student Report - {studentInfo.Name}");
+                sb.AppendLine($"Class: {studentInfo.ClassLevel}");
+                sb.AppendLine($"Position: {studentInfo.ClassPosition}");
+                sb.AppendLine("\nSubject Marks:");
+
+                foreach (var subject in studentInfo.Subjects)
+                {
+                    sb.AppendLine($"{subject.Name}: {subject.Mark}/100");
+                }
+
+                return Encoding.UTF8.GetBytes(sb.ToString());
+            }
+
+            private StudentInfo GetStudentInfo(int studentId)
+            {
+                // Implement database query to get student details
+                var info = new StudentInfo();
+                using (var conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+                    // Add actual database queries here
+                }
+                return info;
+            }
+        }
+
+        // Add this nested class for student information
+        private class StudentInfo
+        {
+            public string Name { get; set; }
+            public string ClassLevel { get; set; }
+            public int ClassPosition { get; set; }
+            public decimal OverallGrade { get; set; }
+            public List<SubjectMark> Subjects { get; set; } = new List<SubjectMark>();
+        }
+
+        private class SubjectMark
+        {
+            public string Name { get; set; }
+            public decimal Mark { get; set; }
+        }
+
+        private AssessmentEmailService emailService = new AssessmentEmailService();
+
+
+        private void btnSendReports_Click(object sender, EventArgs e)
+        {
+            if (AnsweredQue.SelectedRows.Count > 0)
+            {
+                var studentId = Convert.ToInt32(AnsweredQue.SelectedRows[0].Cells["StudentID"].Value);
+                var parentEmail = GetParentEmail(studentId);
+                emailService.SendAssessmentReport(studentId, parentEmail);
+            }
+        }
+
+        private string GetParentEmail(int studentId)
+        {
+            try
+            {
+                using (var conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+                    string query = "SELECT ParentEmail FROM Students WHERE UserID = @studentId";
+                    using (var cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@studentId", studentId);
+                        var result = cmd.ExecuteScalar();
+                        return result?.ToString() ?? string.Empty;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error getting parent email: {ex.Message}", "Database Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return string.Empty;
+            }
+        }
+
+        private void guna2Button5_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // 1. Validate selection
+                if (guna2ComboBox2.SelectedItem == null)
+                {
+                    MessageBox.Show("Please select a student first.",
+                                  "Selection Required",
+                                  MessageBoxButtons.OK,
+                                  MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // 2. Get selected student data
+                var selectedStudent = (ComboBoxStudentItem)guna2ComboBox2.SelectedItem;
+
+                // 3. Validate email
+                if (string.IsNullOrWhiteSpace(selectedStudent.ParentEmail) ||
+                    !IsValidEmail(selectedStudent.ParentEmail))
+                {
+                    MessageBox.Show($"Invalid parent email: {selectedStudent.ParentEmail}",
+                                  "Validation Error",
+                                  MessageBoxButtons.OK,
+                                  MessageBoxIcon.Error);
+                    return;
+                }
+
+                // 4. Create student and send report
+                var student = new Student
+                {
+                    StudentID = selectedStudent.StudentID,
+                    ClassLevel = selectedStudent.ClassLevel
+                };
+
+                // 5. Send report with progress indication
+                Cursor.Current = Cursors.WaitCursor;
+                student.SendReportToParent(
+                    selectedStudent.ParentEmail,
+                    selectedStudent.DisplayText.Replace($" (Class {selectedStudent.ClassLevel})", ""));
+                Cursor.Current = Cursors.Default;
+
+                // 6. Show success message
+                MessageBox.Show($"Report sent to {selectedStudent.ParentEmail}",
+                              "Success",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Information);
+            }
+            catch (InvalidCastException)
+            {
+                MessageBox.Show("Invalid student data format",
+                              "System Error",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}",
+                              "Operation Failed",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Error);
+            }
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        private int GetClassLevelFromDisplayText(string displayText)
+        {
+            // Extract class level from text like "John Doe (Class 5)"
+            var match = System.Text.RegularExpressions.Regex.Match(displayText, @"Class (\d+)");
+            return match.Success ? int.Parse(match.Groups[1].Value) : 0;
+        }
+
+        private void LoadStudentsIntoComboBox()
+        {
+            guna2ComboBox2.Items.Clear();
+
+            try
+            {
+                using (var conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+                    string query = "SELECT StudentID, FirstName, LastName, ParentEmail, ClassLevel FROM Students";
+
+                    using (var cmd = new SQLiteCommand(query, conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                guna2ComboBox2.Items.Add(new ComboBoxStudentItem
+                                {
+                                    StudentID = Convert.ToInt32(reader["StudentID"]),
+                                    DisplayText = $"{reader["FirstName"]} {reader["LastName"]} (Class {reader["ClassLevel"]})",
+                                    ParentEmail = reader["ParentEmail"].ToString(),
+                                    ClassLevel = reader["ClassLevel"].ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load students: {ex.Message}",
+                              "Database Error",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Error);
+            }
+        }
+
+        private void guna2ComboBox2_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+        
+        public class ComboBoxStudentItem
+        {
+            public int StudentID { get; set; }
+            public string DisplayText { get; set; }
+            public string ParentEmail { get; set; }
+            public string ClassLevel { get; set; }
+            public override string ToString() => DisplayText;
+        }
     }
+
+
 }
+

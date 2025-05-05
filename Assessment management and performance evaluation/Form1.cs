@@ -44,13 +44,19 @@ namespace Assessment_management_and_performance_evaluation
                     MessageBox.Show("Login successful!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                     // Open the correct dashboard and pass the logged-in UserID
-                    Form dashboard = null;
+                    Form dashboard;
                     if (userType == "Administrator")
+                    {
                         dashboard = new Admin_dashboard(userId);
+                    }
                     else if (userType == "Teacher")
+                    {
                         dashboard = new teacher_dashboard(userId);
+                    }
                     else if (userType == "Student")
+                    {
                         dashboard = new student_dashboard(userId);
+                    }
                     else
                     {
                         MessageBox.Show("Unknown user type!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);

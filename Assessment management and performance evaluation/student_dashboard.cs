@@ -24,10 +24,23 @@ namespace Assessment_management_and_performance_evaluation
         private List<RadioButton> currentRadioButtons = new List<RadioButton>();
         private TextBox currentStructuredAnswerBox = null;
         private RichTextBox currentEssayAnswerBox = null;
+        private System.Windows.Forms.Timer passwordVerificationTimer;
+        private int passwordAttempts = 0;
+        private bool isAssessmentLocked = false;
+        private Label questionNO;  // Field declaration
+        private string currentAssessmentType;
+        private Account account;
+
         public student_dashboard(int userId)
         {
             InitializeComponent();
             loggedInUserId = userId;
+            account = new Account();
+
+            // Initialize password verification timer (3 minutes)
+            passwordVerificationTimer = new System.Windows.Forms.Timer();
+            passwordVerificationTimer.Interval = 3 * 60 * 1000; // 3 minutes in milliseconds
+            passwordVerificationTimer.Tick += PasswordVerificationTimer_Tick;
 
             // Initialize questionNO label
             questionNO = new Label
@@ -49,81 +62,243 @@ namespace Assessment_management_and_performance_evaluation
                 {
                     conn.Open();
 
-                    // 1. Get student's class level
-                    int classLevel = 0;
-                    string classQuery = "SELECT ClassLevel FROM Students WHERE UserID = @userId";
+                    // Check if student has completed any assessment today
+                    string completedTodayQuery = @"
+                        SELECT COUNT(*) FROM CompletedAssessments 
+                        WHERE StudentID = @studentId 
+                        AND date(CompletionDate) = date('now')";
 
-                    using (SQLiteCommand cmd = new SQLiteCommand(classQuery, conn))
+                    using (SQLiteCommand completedCmd = new SQLiteCommand(completedTodayQuery, conn))
                     {
-                        cmd.Parameters.AddWithValue("@userId", loggedInUserId);
-                        object result = cmd.ExecuteScalar();
+                        completedCmd.Parameters.AddWithValue("@studentId", loggedInUserId);
+                        int completedToday = Convert.ToInt32(completedCmd.ExecuteScalar());
 
-                        if (result != null && result != DBNull.Value)
+                        if (completedToday > 0)
                         {
-                            classLevel = Convert.ToInt32(result);
-                            Console.WriteLine($"Student Class Level: {classLevel}");
-                        }
-                        else
-                        {
-                            Console.WriteLine("No class level found for student!");
-                            MessageBox.Show("Student class level not found!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show("You have already completed an assessment today. Please try again tomorrow.", 
+                                "Daily Limit Reached", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            guna2TabControl1.SelectedIndex = 0; // Switch back to first tab
                             return;
                         }
                     }
 
-                    // 2. Get assessment and its type
-                    string assessmentQuery = @"
-                        SELECT a.AssessmentID, a.Title, a.TimeLimit, q.questiontype as AssessmentType 
-                        FROM Assessments a
-                        LEFT JOIN Questions q ON q.AssessmentID = a.AssessmentID
-                        WHERE a.AssessmentID = @assessmentId
-                        LIMIT 1";
+                    // Check if student is locked out from any assessment
+                    string lockoutQuery = "SELECT COUNT(*) FROM AssessmentLockouts WHERE StudentID = @studentId";
+                    using (SQLiteCommand lockoutCmd = new SQLiteCommand(lockoutQuery, conn))
+                    {
+                        lockoutCmd.Parameters.AddWithValue("@studentId", loggedInUserId);
+                        int lockoutCount = Convert.ToInt32(lockoutCmd.ExecuteScalar());
 
-                    using (SQLiteCommand cmd = new SQLiteCommand(assessmentQuery, conn))
+                        if (lockoutCount > 0)
+                        {
+                            MessageBox.Show("You are currently locked out from taking assessments.", 
+                                "Assessment Locked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            guna2TabControl1.SelectedIndex = 0; // Switch back to first tab
+                            return;
+                        }
+                    }
+
+                    // Check if student has already completed this specific assessment
+                    string completedQuery = "SELECT COUNT(*) FROM CompletedAssessments WHERE StudentID = @studentId AND AssessmentID = @assessmentId";
+                    using (SQLiteCommand completedCmd = new SQLiteCommand(completedQuery, conn))
+                    {
+                        completedCmd.Parameters.AddWithValue("@studentId", loggedInUserId);
+                        completedCmd.Parameters.AddWithValue("@assessmentId", currentAssessmentID);
+                        int completedCount = Convert.ToInt32(completedCmd.ExecuteScalar());
+
+                        if (completedCount > 0)
+                        {
+                            MessageBox.Show("You have already completed this assessment.", 
+                                "Already Completed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            guna2TabControl1.SelectedIndex = 0; // Switch back to first tab
+                            return;
+                        }
+                    }
+
+                    // Load assessment details
+                    string query = @"
+                        SELECT AssessmentID, Title, Duration 
+                        FROM Assessments 
+                        WHERE AssessmentID = @assessmentId";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@assessmentId", currentAssessmentID);
-
                         using (SQLiteDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
-                                assessmentId = reader.GetInt32(reader.GetOrdinal("AssessmentID"));
-                                string title = reader.GetString(reader.GetOrdinal("Title"));
-                                int timeLimit = reader.GetInt32(reader.GetOrdinal("TimeLimit"));
-                                currentAssessmentType = reader.GetString(reader.GetOrdinal("AssessmentType"));
-
-                                label1.Text = "Assessment: " + title;
-                                label2.Text = "Class Level: " + classLevel.ToString();
-                                totalTimeInSeconds = timeLimit * 60 * 60;
-
-                                Console.WriteLine($"Loaded Assessment: ID={assessmentId}, Title='{title}', TimeLimit={timeLimit} hours, Type={currentAssessmentType}");
+                                assessmentId = reader.GetInt32(0);
+                                totalTimeInSeconds = reader.GetInt32(2) * 60; // Convert minutes to seconds
+                                StartCountdown();
                             }
                             else
                             {
                                 Console.WriteLine($"No assessment found with ID {currentAssessmentID}");
                                 MessageBox.Show("Assessment not found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                guna2TabControl1.SelectedIndex = 0; // Switch back to first tab
                                 return;
                             }
                         }
                     }
 
-                    // 3. Load questions
+                    // Load questions
                     questionsList = Question.LoadQuestions(assessmentId);
                     if (questionsList.Count == 0)
                     {
                         MessageBox.Show("No questions found in the assessment.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        guna2TabControl1.SelectedIndex = 0; // Switch back to first tab
                         return;
                     }
 
-                    StartCountdown();
+                    currentIndex = 0;
                     DisplayCurrentQuestion();
+                    passwordVerificationTimer.Start();
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading assessment: " + ex.Message);
+                guna2TabControl1.SelectedIndex = 0; // Switch back to first tab
             }
         }
+
+        private void PasswordVerificationTimer_Tick(object sender, EventArgs e)
+        {
+            VerifyPassword();
+        }
+
+        private void VerifyPassword()
+        {
+            if (isAssessmentLocked) return;
+
+            using (Form passwordForm = new Form())
+            {
+                passwordForm.Text = "Password Verification";
+                passwordForm.Size = new Size(300, 150);
+                passwordForm.StartPosition = FormStartPosition.CenterParent;
+
+                TextBox passwordBox = new TextBox
+                {
+                    Location = new Point(20, 20),
+                    PasswordChar = '*',
+                    Width = 240
+                };
+
+                Button submitButton = new Button
+                {
+                    Text = "Verify",
+                    Location = new Point(100, 60),
+                    DialogResult = DialogResult.OK
+                };
+
+                passwordForm.Controls.AddRange(new Control[] { passwordBox, submitButton });
+                passwordForm.AcceptButton = submitButton;
+
+                if (passwordForm.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                        {
+                            conn.Open();
+                            string query = "SELECT Password FROM Users WHERE UserID = @userId";
+
+                            using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@userId", loggedInUserId);
+                                string storedHashedPassword = (string)cmd.ExecuteScalar();
+
+                                if (account.VerifyPassword(passwordBox.Text, storedHashedPassword))
+                                {
+                                    passwordAttempts = 0; // Reset attempts on successful verification
+                                    return;
+                                }
+                            }
+                        }
+
+                        // If we get here, password verification failed
+                        passwordAttempts++;
+                        if (passwordAttempts >= 3)
+                        {
+                            LockoutStudent();
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Incorrect password. You have {3 - passwordAttempts} attempts remaining.",
+                                "Verification Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            VerifyPassword(); // Try again immediately
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error verifying password: " + ex.Message);
+                    }
+                }
+            }
+        }
+
+        private void LockoutStudent()
+        {
+            isAssessmentLocked = true;
+            passwordVerificationTimer.Stop();
+
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+
+                    // Record the lockout
+                    string lockoutQuery = @"
+                        INSERT INTO AssessmentLockouts (StudentID, AssessmentID, LockoutDate) 
+                        VALUES (@studentId, @assessmentId, @lockoutDate)";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(lockoutQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@studentId", loggedInUserId);
+                        cmd.Parameters.AddWithValue("@assessmentId", assessmentId);
+                        cmd.Parameters.AddWithValue("@lockoutDate", DateTime.Now);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    MessageBox.Show("You have been locked out of this assessment due to multiple failed password verifications.",
+                        "Assessment Locked", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    this.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error recording lockout: " + ex.Message);
+            }
+        }
+
+        private void MarkAssessmentAsCompleted()
+        {
+            try
+            {
+                using (SQLiteConnection conn = new SQLiteConnection("Data Source=assessment.db;Version=3;"))
+                {
+                    conn.Open();
+                    string query = @"
+                        INSERT INTO CompletedAssessments (StudentID, AssessmentID, CompletionDate) 
+                        VALUES (@studentId, @assessmentId, @completionDate)";
+
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@studentId", loggedInUserId);
+                        cmd.Parameters.AddWithValue("@assessmentId", assessmentId);
+                        cmd.Parameters.AddWithValue("@completionDate", DateTime.Now);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error recording assessment completion: " + ex.Message);
+            }
+        }
+
         private void StartCountdown()
         {
             countdownTimer = new System.Windows.Forms.Timer();
@@ -369,21 +544,42 @@ namespace Assessment_management_and_performance_evaluation
                             FROM Questions 
                             WHERE QuestionID = @questionId";
 
-                        using (SQLiteCommand cmd = new SQLiteCommand(verifyQuery, conn))
+                        using (SQLiteCommand verifyCmd = new SQLiteCommand(verifyQuery, conn))
                         {
-                            cmd.Parameters.AddWithValue("@questionId", questionsList[currentIndex].QuestionID);
-                            using (SQLiteDataReader reader = cmd.ExecuteReader())
+                            verifyCmd.Parameters.AddWithValue("@questionId", questionsList[currentIndex].QuestionID);
+                            using (SQLiteDataReader reader = verifyCmd.ExecuteReader())
                             {
                                 if (reader.Read())
                                 {
-                                    string correctAnswer = reader.GetString(reader.GetOrdinal("CorrectAnswer"));
-                                    isCorrect = (answerText == correctAnswer);
+                                    string correctAnswer = reader.GetString(0);
+                                    int marks = reader.GetInt32(1);
+                                    isCorrect = answerText == correctAnswer;
+
+                                    // Insert or update the answer with marks for multiple choice
+                                    string query = @"
+                                        INSERT OR REPLACE INTO Answers 
+                                        (StudentID, AssessmentID, QuestionID, AnswerText, IsCorrect, multipleQmarkS) 
+                                        VALUES 
+                                        (@studentId, @assessmentId, @questionId, @answerText, @isCorrect, @marks)";
+
+                                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn))
+                                    {
+                                        cmd.Parameters.AddWithValue("@studentId", loggedInUserId);
+                                        cmd.Parameters.AddWithValue("@assessmentId", assessmentId);
+                                        cmd.Parameters.AddWithValue("@questionId", questionsList[currentIndex].QuestionID);
+                                        cmd.Parameters.AddWithValue("@answerText", answerText);
+                                        cmd.Parameters.AddWithValue("@isCorrect", isCorrect);
+                                        cmd.Parameters.AddWithValue("@marks", isCorrect == true ? marks : 0);
+
+                                        cmd.ExecuteNonQuery();
+                                    }
+                                    return;
                                 }
                             }
                         }
                     }
 
-                    // Save the answer with verified correctness
+                    // For other question types
                     string insertQuery = @"
                         INSERT OR REPLACE INTO Answers 
                         (StudentID, AssessmentID, QuestionID, AnswerText, IsCorrect) 
@@ -482,6 +678,7 @@ namespace Assessment_management_and_performance_evaluation
                 {
                     MessageBox.Show("Assessment completed successfully!", "Complete",
                                   MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MarkAssessmentAsCompleted();
                     // Additional completion logic here
                 }
                 else
@@ -498,8 +695,6 @@ namespace Assessment_management_and_performance_evaluation
                 Console.WriteLine($"Error in guna2Button3_Click: {ex.ToString()}");
             }
         }
-
-        private string currentAssessmentType;
 
         private void guna2Button1_Click(object sender, EventArgs e)
         {
@@ -753,6 +948,5 @@ namespace Assessment_management_and_performance_evaluation
             }
         }
 
-        private Label questionNO;  // Field declaration
     }
 }
