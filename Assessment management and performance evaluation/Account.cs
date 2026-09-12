@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -256,26 +256,12 @@ namespace Assessment_management_and_performance_evaluation
 
         public void SendEmail(string recipientEmail, string tempPassword)
         {
-            try
+            string subject = "Temporary Password for Your Child's Account";
+            string body = $"Dear Parent,\n\nYour child's account has been created successfully.\n\nTemporary Password: {tempPassword}\n\nPlease ensure your child changes this password upon first login.\n\nBest regards,\nSchool Administration";
+            bool sent = EmailService.SendEmail(recipientEmail, subject, body, out string error);
+            if (!sent)
             {
-                MailMessage mail = new MailMessage();
-                SmtpClient smtp = new SmtpClient("smtp.gmail.com");
-
-                mail.From = new MailAddress("princekamnga1@gmail.com");
-                mail.To.Add(recipientEmail);
-                mail.Subject = "Temporary Password for Your Child's Account";
-                mail.Body = $"Dear Parent,\n\nYour child's account has been created successfully.\n\nTemporary Password: {tempPassword}\n\nPlease ensure your child changes this password upon first login.\n\nBest regards,\nSchool Administration";
-
-                smtp.Port = 587;
-                smtp.Credentials = new NetworkCredential("princekamnga1@gmail.com", "bqvybghkgprijkcg"); // Use App Password here
-
-                smtp.EnableSsl = true;
-
-                smtp.Send(mail);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Failed to send email: " + ex.Message, "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Failed to send email to parent: " + error, "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

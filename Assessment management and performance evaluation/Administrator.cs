@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -48,6 +48,18 @@ namespace Assessment_management_and_performance_evaluation
                     {
                         try
                         {
+                            // Check if username already exists in Users to avoid UNIQUE constraint failure
+                            string checkUserQuery = "SELECT COUNT(*) FROM Users WHERE Username = @username;";
+                            using (SQLiteCommand cmdCheck = new SQLiteCommand(checkUserQuery, conn))
+                            {
+                                cmdCheck.Parameters.AddWithValue("@username", username);
+                                long count = Convert.ToInt64(cmdCheck.ExecuteScalar());
+                                if (count > 0)
+                                {
+                                    username = $"{username}{new Random().Next(10, 99)}";
+                                }
+                            }
+
                             // 1️⃣ Insert into Users table to generate UserID first
                             string insertUserQuery = "INSERT INTO Users (Username, Password, UserType) VALUES (@username, @password, 'Teacher');";
                             using (SQLiteCommand cmdUser = new SQLiteCommand(insertUserQuery, conn))
@@ -78,10 +90,43 @@ namespace Assessment_management_and_performance_evaluation
                             // Commit transaction
                             transaction.Commit();
 
-                            // Send email using provided email
-                            SendEmail(email, tempPassword);
+                            // Send email with credentials (including username!)
+                            string emailSubject = "Your Teacher Account Credentials";
+                            string emailBody = $"Hello {firstName},\n\n" +
+                                               $"Your teacher account has been successfully created.\n\n" +
+                                               $"Username: {username}\n" +
+                                               $"Temporary Password: {tempPassword}\n\n" +
+                                               $"Please log in and change your password upon first login.\n\n" +
+                                               $"Best regards,\nSchool Administration";
 
-                            MessageBox.Show("Teacher registered successfully! Temporary password sent via email.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            bool emailSent = EmailService.SendEmail(email, emailSubject, emailBody, out string emailError);
+
+                            if (emailSent)
+                            {
+                                MessageBox.Show($"Teacher registered successfully!\nLogin credentials sent to {email}.\n\nUsername: {username}",
+                                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                            else
+                            {
+                                string message = $"Teacher registered successfully in the database.\n\n" +
+                                                 $"Notice: The credentials email could not be delivered.\n" +
+                                                 $"Error: {emailError}\n\n" +
+                                                 $"Please provide the credentials directly to the teacher:\n" +
+                                                 $"----------------------------------------\n" +
+                                                 $"Username: {username}\n" +
+                                                 $"Temporary Password: {tempPassword}\n" +
+                                                 $"----------------------------------------\n" +
+                                                 $"(The credentials have been copied to your clipboard)";
+
+                                try
+                                {
+                                    Clipboard.SetText($"Username: {username}\r\nPassword: {tempPassword}");
+                                }
+                                catch { }
+
+                                MessageBox.Show(message, "Email Delivery Notice", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            }
+
                             return true;
                         }
                         catch (Exception ex)
@@ -128,59 +173,16 @@ namespace Assessment_management_and_performance_evaluation
             }
         }
 
-        /*  private void SendEmail(string recipientEmail, string tempPassword)
-          {
-              try
-              {
-                  MailMessage mail = new MailMessage();
-                  SmtpClient smtp = new SmtpClient("smtp.gmail.com"); // Change to your email provider
-
-                  mail.From = new MailAddress("your-email@gmail.com");
-                  mail.To.Add(recipientEmail);
-                  mail.Subject = "Temporary Password for Your Account";
-                  mail.Body = $"Hello,\n\nYour account has been created. Your temporary password is: {tempPassword}\n\nPlease change it upon first login.\n\nBest regards,\nAdmin";
-
-                  smtp.Port = 570; // Use correct port (587 for TLS, 465 for SSL)
-                  smtp.Credentials = new NetworkCredential("your-email@gmail.com", "hvijsqefkxssebki");
-                  smtp.EnableSsl = true; // Must be true for encryption
-
-                  smtp.Send(mail);
-                  MessageBox.Show("Email sent successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-              }
-              catch (Exception ex)
-              {
-                  MessageBox.Show("Failed to send email: " + ex.Message, "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-              }
-          }
-        */
-       
-        private void SendEmail(string recipientEmail, string tempPassword)
+        public bool SendEmail(string recipientEmail, string tempPassword)
         {
-            try
+            string subject = "Temporary Password for Your Account";
+            string body = $"Hello,\n\nYour account has been created. Your temporary password is: {tempPassword}\n\nPlease change it upon first login.\n\nBest regards,\nSchool Administration";
+            bool sent = EmailService.SendEmail(recipientEmail, subject, body, out string error);
+            if (!sent)
             {
-                using (MailMessage mail = new MailMessage())
-                using (SmtpClient smtp = new SmtpClient("smtp.gmail.com"))
-                {
-                    mail.From = new MailAddress("princekamnga1@gmail.com");
-                    mail.To.Add(recipientEmail);
-                    mail.Subject = "Temporary Password for Your Account";
-                    mail.Body = $"Hello,\n\nYour account has been created. Your temporary password is: {tempPassword}\n\nPlease change it upon first login.\n\nBest regards,\nAdmin";
-                    mail.IsBodyHtml = false; // Explicitly set to false since you're using plain text
-
-                    smtp.Port = 587;
-                    smtp.Credentials = new NetworkCredential("princekamnga1@gmail.com", "bqvybghkgprijkcg");
-                    smtp.EnableSsl = true;
-                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-                    smtp.Timeout = 10000; // 10 seconds timeout
-
-                    smtp.Send(mail);
-                    MessageBox.Show("Email sent successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                MessageBox.Show($"Failed to send email: {error}", "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to send email: {ex.Message}", "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            return sent;
         }
         public void DeleteAccount(int userID) { /* Logic */ }
         }
