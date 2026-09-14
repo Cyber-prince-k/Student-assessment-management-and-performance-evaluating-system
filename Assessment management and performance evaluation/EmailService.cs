@@ -17,8 +17,8 @@ namespace Assessment_management_and_performance_evaluation
             }
         }
 
-        private static string SenderEmail => ConfigurationManager.AppSettings["SenderEmail"] ?? "";
-        private static string SenderAppPassword => ConfigurationManager.AppSettings["SenderAppPassword"] ?? "REPLACE_WITH_LOCAL_APP_PASSWORD";
+        private static string SenderEmail => ConfigurationManager.AppSettings["SenderEmail"] ?? string.Empty;
+        private static string SenderAppPassword => ConfigurationManager.AppSettings["SenderAppPassword"] ?? string.Empty;
         private static bool EnableSsl
         {
             get
